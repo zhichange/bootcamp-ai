@@ -1,7 +1,7 @@
 """Query execution API endpoints."""
 
 import json
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlmodel import Session, select
 from typing import List
 from app.database import get_session
@@ -13,10 +13,12 @@ from app.models.schemas import (
     QueryHistoryEntry,
     NaturalLanguageInput,
     GeneratedSqlResponse,
+    ExportInput,
 )
 from app.services.query_wrapper import execute_query_with_service
 from app.services.query import get_query_history
 from app.services.sql_validator import SqlValidationError
+from app.services.export_service import ExportFormat, format_result, build_filename
 from app.services.nl2sql import nl2sql_service
 from app.services.metadata import get_cached_metadata
 
@@ -88,6 +90,77 @@ async def execute_sql_query(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Query execution failed: {str(e)}",
         )
+
+
+@router.post("/{name}/query/export")
+async def export_query_result(
+    name: str,
+    input_data: ExportInput,
+    session: Session = Depends(get_session),
+) -> Response:
+    """
+    Execute a SQL query and return the result as a downloadable file.
+
+    Args:
+        name: Database connection name
+        input_data: Export input with SQL and target format (csv/json/tsv)
+        session: Database session
+
+    Returns:
+        File download response with Content-Disposition header
+    """
+    # Validate export format
+    try:
+        fmt = ExportFormat(input_data.format.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unsupported export format: '{input_data.format}'. Supported formats: csv, json, tsv",
+        )
+
+    # Get connection
+    statement = select(DatabaseConnection).where(
+        DatabaseConnection.name == name
+    )
+    connection = session.exec(statement).first()
+
+    if not connection:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Database connection '{name}' not found",
+        )
+
+    # Execute query (reuses validation, LIMIT protection and history recording)
+    try:
+        result = await execute_query_with_service(
+            session,
+            name,
+            connection.db_type,
+            connection.url,
+            input_data.sql,
+            QuerySource.MANUAL,
+        )
+    except SqlValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Query execution failed: {str(e)}",
+        )
+
+    # Serialize and return as file download
+    content = format_result(result, fmt)
+    filename = build_filename(name, fmt)
+    return Response(
+        content=content,
+        media_type=fmt.content_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
 
 
 @router.get("/{name}/history", response_model=List[QueryHistoryEntry])

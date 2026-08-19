@@ -140,6 +140,50 @@ GET {{baseUrl}}/dbs/{{dbName}}/history HTTP/1.1
 GET {{baseUrl}}/dbs/{{dbName}}/history?limit=10 HTTP/1.1
 
 ###
+### 15a. Export Query Result as CSV (downloads a file)
+###
+POST {{baseUrl}}/dbs/{{dbName}}/query/export HTTP/1.1
+Content-Type: application/json
+
+{
+  "sql": "SELECT * FROM users LIMIT 10",
+  "format": "csv"
+}
+
+###
+### 15b. Export Query Result as JSON
+###
+POST {{baseUrl}}/dbs/{{dbName}}/query/export HTTP/1.1
+Content-Type: application/json
+
+{
+  "sql": "SELECT * FROM users LIMIT 10",
+  "format": "json"
+}
+
+###
+### 15c. Export Query Result as TSV
+###
+POST {{baseUrl}}/dbs/{{dbName}}/query/export HTTP/1.1
+Content-Type: application/json
+
+{
+  "sql": "SELECT * FROM users LIMIT 10",
+  "format": "tsv"
+}
+
+###
+### 15d. Export Error: Unsupported format (should fail with 422)
+###
+POST {{baseUrl}}/dbs/{{dbName}}/query/export HTTP/1.1
+Content-Type: application/json
+
+{
+  "sql": "SELECT * FROM users LIMIT 10",
+  "format": "pdf"
+}
+
+###
 ### 16. Delete Database Connection
 ### WARNING: This will delete the database connection and all metadata
 DELETE {{baseUrl}}/dbs/{{dbName}} HTTP/1.1

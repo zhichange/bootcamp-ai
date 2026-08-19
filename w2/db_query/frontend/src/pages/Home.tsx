@@ -22,7 +22,9 @@ import {
   DatabaseOutlined,
   ReloadOutlined,
   ExclamationCircleOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
+import { Dropdown } from "antd";
 import { apiClient } from "../services/api";
 import { DatabaseMetadata, TableMetadata } from "../types/metadata";
 import { MetadataTree } from "../components/MetadataTree";
@@ -136,7 +138,7 @@ export const Home: React.FC = () => {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExport = (format: "csv" | "json" | "tsv") => {
     if (!queryResult || queryResult.rows.length === 0) {
       message.warning("No data to export");
       return;
@@ -148,77 +150,50 @@ export const Home: React.FC = () => {
         title: "Large Dataset Warning",
         icon: <ExclamationCircleOutlined />,
         content: `You are about to export ${queryResult.rowCount.toLocaleString()} rows. This may take a while and consume memory. Continue?`,
-        onOk: () => exportToCSV(),
+        onOk: () => exportToFile(format),
       });
     } else {
-      exportToCSV();
+      exportToFile(format);
     }
   };
 
-  const exportToCSV = () => {
-    if (!queryResult) return;
+  const exportToFile = async (format: "csv" | "json" | "tsv") => {
+    if (!selectedDatabase || !sql.trim()) return;
 
-    // Generate CSV content
-    const headers = queryResult.columns.map((col) => col.name);
-    const csvRows = [headers.join(",")];
+    try {
+      const response = await apiClient.post(
+        `/api/v1/dbs/${selectedDatabase}/query/export`,
+        { sql: sql.trim(), format },
+        { responseType: "blob" }
+      );
 
-    queryResult.rows.forEach((row) => {
-      const values = headers.map((header) => {
-        const value = row[header];
-        // Handle null/undefined
-        if (value === null || value === undefined) return "";
-        // Escape quotes and wrap in quotes if contains comma or quote
-        const stringValue = String(value);
-        if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
-          return `"${stringValue.replace(/"/g, '""')}"`;
+      // Filename from Content-Disposition header, falling back to a generated one
+      const disposition: string = response.headers?.["content-disposition"] || "";
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
+      const filename = match?.[1] || `${selectedDatabase}_${timestamp}.${format}`;
+
+      const blob = new Blob([response.data]);
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      message.success(`Exported ${queryResult?.rowCount ?? 0} rows to ${format.toUpperCase()}`);
+    } catch (error: any) {
+      // Blob error responses need to be read as text
+      let detail = "Export failed";
+      if (error.response?.data instanceof Blob) {
+        try {
+          detail = JSON.parse(await error.response.data.text())?.detail || detail;
+        } catch {
+          /* keep default */
         }
-        return stringValue;
-      });
-      csvRows.push(values.join(","));
-    });
-
-    const csvContent = csvRows.join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
-    link.href = URL.createObjectURL(blob);
-    link.download = `${selectedDatabase}_${timestamp}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    message.success(`Exported ${queryResult.rowCount} rows to CSV`);
-  };
-
-  const handleExportJSON = () => {
-    if (!queryResult || queryResult.rows.length === 0) {
-      message.warning("No data to export");
-      return;
+      } else {
+        detail = error.response?.data?.detail || error.message || detail;
+      }
+      message.error(detail);
     }
-
-    // Warn if result is large
-    if (queryResult.rows.length > 10000) {
-      Modal.confirm({
-        title: "Large Dataset Warning",
-        icon: <ExclamationCircleOutlined />,
-        content: `You are about to export ${queryResult.rowCount.toLocaleString()} rows. This may take a while and consume memory. Continue?`,
-        onOk: () => exportToJSON(),
-      });
-    } else {
-      exportToJSON();
-    }
-  };
-
-  const exportToJSON = () => {
-    if (!queryResult) return;
-
-    const jsonContent = JSON.stringify(queryResult.rows, null, 2);
-    const blob = new Blob([jsonContent], { type: "application/json;charset=utf-8;" });
-    const link = document.createElement("a");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
-    link.href = URL.createObjectURL(blob);
-    link.download = `${selectedDatabase}_${timestamp}.json`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    message.success(`Exported ${queryResult.rowCount} rows to JSON`);
   };
 
   const tableColumns =
@@ -623,22 +598,24 @@ export const Home: React.FC = () => {
               </Space>
             }
             extra={
-              <Space size={8}>
+              <Dropdown
+                menu={{
+                  items: [
+                    { key: "csv", label: "CSV" },
+                    { key: "json", label: "JSON" },
+                    { key: "tsv", label: "TSV" },
+                  ],
+                  onClick: ({ key }) => handleExport(key as "csv" | "json" | "tsv"),
+                }}
+              >
                 <Button
                   size="small"
-                  onClick={handleExportCSV}
+                  icon={<DownloadOutlined />}
                   style={{ fontSize: 12, fontWeight: 700 }}
                 >
-                  EXPORT CSV
+                  EXPORT
                 </Button>
-                <Button
-                  size="small"
-                  onClick={handleExportJSON}
-                  style={{ fontSize: 12, fontWeight: 700 }}
-                >
-                  EXPORT JSON
-                </Button>
-              </Space>
+              </Dropdown>
             }
             style={{ borderWidth: 2, borderColor: "#000000" }}
           >
