@@ -5,6 +5,7 @@ whether query results correctly match the user's original question.
 """
 
 import json
+import logging
 from typing import TYPE_CHECKING, Any
 
 from openai import AsyncOpenAI
@@ -19,6 +20,8 @@ from pg_mcp.prompts.result_validation import (
 
 if TYPE_CHECKING:
     from openai.types.chat import ChatCompletion
+
+logger = logging.getLogger(__name__)
 
 
 class ResultValidator:
@@ -55,8 +58,81 @@ class ResultValidator:
         self.validation_config = validation_config
         self.client = AsyncOpenAI(
             api_key=openai_config.api_key.get_secret_value(),
+            base_url=openai_config.base_url,
             timeout=validation_config.timeout_seconds,
         )
+
+    def _ensure_api_key(self) -> None:
+        """Ensure an API key is configured before making an LLM call.
+
+        Raises:
+            LLMUnavailableError: If no API key is configured.
+        """
+        if not self.openai_config.has_api_key:
+            raise LLMUnavailableError(
+                message=(
+                    "LLM API key is not configured. Set OPENAI_API_KEY in .env "
+                    "(GLM keys work as-is with the default base_url)."
+                ),
+                details={"base_url": self.openai_config.base_url},
+            )
+
+    async def _create_chat_completion(
+        self,
+        model: str,
+        prompt: str,
+    ) -> "ChatCompletion":
+        """Call the chat completions API with response_format fallback.
+
+        Some OpenAI-compatible backends (e.g. certain GLM models) reject the
+        ``response_format={"type": "json_object"}`` parameter. When the first
+        attempt fails with a bad-request style error mentioning
+        ``response_format``, the call is retried once without it; the
+        validation prompt already instructs JSON-only output.
+
+        Args:
+            model: Model identifier to call.
+            prompt: User message content.
+
+        Returns:
+            ChatCompletion: The completion response.
+
+        Raises:
+            LLMError: If both attempts fail.
+        """
+        try:
+            return await self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": RESULT_VALIDATION_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=500,
+                temperature=0.0,  # Use deterministic output for validation
+                response_format={"type": "json_object"},  # Ensure JSON response
+            )
+        except Exception as e:
+            error_msg = str(e).lower()
+            retryable = (
+                "response_format" in error_msg
+                or "json_object" in error_msg
+                or ("400" in error_msg and "json" in error_msg)
+            )
+            if not retryable:
+                raise
+            logger.warning(
+                "response_format not supported by model %s, retrying without it",
+                model,
+            )
+            return await self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": RESULT_VALIDATION_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=500,
+                temperature=0.0,
+            )
 
     async def validate(
         self,
@@ -105,6 +181,8 @@ class ResultValidator:
                 is_acceptable=True,
             )
 
+        self._ensure_api_key()
+
         # Sample results to avoid sending too much data to LLM
         sample_results = results[: self.validation_config.sample_rows]
 
@@ -117,29 +195,24 @@ class ResultValidator:
         )
 
         try:
-            # Call OpenAI API with structured JSON output
-            response: ChatCompletion = await self.client.chat.completions.create(
+            # Call OpenAI-compatible API with structured JSON output
+            # (falls back to no response_format if the model rejects it)
+            response: ChatCompletion = await self._create_chat_completion(
                 model=self.openai_config.model,
-                messages=[
-                    {"role": "system", "content": RESULT_VALIDATION_SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt},
-                ],
-                max_tokens=500,
-                temperature=0.0,  # Use deterministic output for validation
-                response_format={"type": "json_object"},  # Ensure JSON response
+                prompt=prompt,
             )
 
             # Extract and parse the response
             if not response.choices:
                 raise LLMError(
-                    message="OpenAI returned empty response for result validation",
+                    message="LLM returned empty response for result validation",
                     details={"response": response.model_dump()},
                 )
 
             content = response.choices[0].message.content
             if not content:
                 raise LLMError(
-                    message="OpenAI returned empty message content for result validation",
+                    message="LLM returned empty message content for result validation",
                     details={"response": response.model_dump()},
                 )
 
@@ -196,16 +269,16 @@ class ResultValidator:
             # Re-raise LLM errors as-is
             raise
         except Exception as e:
-            # Handle various OpenAI errors
+            # Handle various OpenAI-compatible API errors
             error_msg = str(e)
             if "authentication" in error_msg.lower() or "api_key" in error_msg.lower():
                 raise LLMUnavailableError(
-                    message="OpenAI API authentication failed - check API key",
+                    message="LLM API authentication failed - check API key",
                     details={"error": error_msg},
                 ) from e
             if "rate_limit" in error_msg.lower():
                 raise LLMUnavailableError(
-                    message="OpenAI API rate limit exceeded",
+                    message="LLM API rate limit exceeded",
                     details={"error": error_msg},
                 ) from e
             raise LLMError(

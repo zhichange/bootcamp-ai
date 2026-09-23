@@ -1,0 +1,3 @@
+2026-09-23 16:40:30.985 CST [25588] FATAL:  pre-existing shared memory block is still in use
+2026-09-23 16:40:30.985 CST [25588] HINT:  Check if there are any old server processes still running, and terminate them.
+2026-09-23 16:40:30.986 CST [25588] LOG:  database system is shut down

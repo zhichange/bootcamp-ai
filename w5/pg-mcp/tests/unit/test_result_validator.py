@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from pg_mcp.config.settings import OpenAIConfig, ValidationConfig
-from pg_mcp.models.errors import LLMError
+from pg_mcp.models.errors import LLMError, LLMUnavailableError
 from pg_mcp.services.result_validator import ResultValidator
 
 
@@ -124,3 +124,48 @@ class TestResultValidator:
 
         prompt = validator.client.chat.completions.create.call_args.kwargs["messages"][1]["content"]
         assert '"id": 99' not in prompt
+
+    @pytest.mark.asyncio
+    async def test_no_api_key_raises_clear_error(self) -> None:
+        """Test an empty API key fails fast with a clear error."""
+        validator = ResultValidator(
+            openai_config=OpenAIConfig(api_key="", model="glm-4.6"),
+            validation_config=ValidationConfig(enabled=True),
+        )
+        with pytest.raises(LLMUnavailableError, match="API key is not configured"):
+            await validator.validate(question="q", sql="SELECT 1", results=[], row_count=0)
+
+    @pytest.mark.asyncio
+    async def test_response_format_fallback_retry(self) -> None:
+        """Test retry without response_format when the model rejects it."""
+        validator = _make_validator()
+        validator.client = AsyncMock()
+        validator.client.chat.completions.create = AsyncMock(
+            side_effect=[
+                Exception("response_format is not supported by this model"),
+                _mock_response('{"confidence": 80, "explanation": "ok"}'),
+            ]
+        )
+
+        result = await validator.validate(question="q", sql="SELECT 1", results=[], row_count=0)
+
+        assert result.confidence == 80
+        # First attempt used response_format, retry omitted it
+        assert validator.client.chat.completions.create.call_count == 2
+        first_kwargs = validator.client.chat.completions.create.call_args_list[0].kwargs
+        second_kwargs = validator.client.chat.completions.create.call_args_list[1].kwargs
+        assert first_kwargs.get("response_format") == {"type": "json_object"}
+        assert "response_format" not in second_kwargs
+
+    @pytest.mark.asyncio
+    async def test_unrelated_error_not_retried(self) -> None:
+        """Test non-response_format errors are not retried without fallback."""
+        validator = _make_validator()
+        validator.client = AsyncMock()
+        validator.client.chat.completions.create = AsyncMock(
+            side_effect=Exception("connection reset by peer")
+        )
+
+        with pytest.raises(Exception, match="connection reset"):
+            await validator.validate(question="q", sql="SELECT 1", results=[], row_count=0)
+        assert validator.client.chat.completions.create.call_count == 1

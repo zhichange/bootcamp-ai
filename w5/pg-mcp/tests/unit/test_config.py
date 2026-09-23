@@ -29,8 +29,8 @@ class TestDatabaseConfig:
     """Tests for DatabaseConfig."""
 
     def test_default_values(self) -> None:
-        """Test default configuration values."""
-        config = DatabaseConfig()
+        """Test default configuration values (ignores local .env)."""
+        config = DatabaseConfig(_env_file=None)
         assert config.host == "localhost"
         assert config.port == 5432
         assert config.name == "postgres"
@@ -52,18 +52,6 @@ class TestDatabaseConfig:
         assert config.name == "mydb"
         assert config.user == "myuser"
         assert config.password == "secret"
-
-    def test_dsn_generation(self) -> None:
-        """Test DSN string generation."""
-        config = DatabaseConfig(
-            host="localhost",
-            port=5432,
-            name="testdb",
-            user="testuser",
-            password="testpass",
-        )
-        dsn = config.dsn
-        assert dsn == "postgresql://testuser:testpass@localhost:5432/testdb"
 
     def test_safe_dsn_masks_password(self) -> None:
         """Test safe DSN masks password."""
@@ -100,41 +88,38 @@ class TestOpenAIConfig:
     """Tests for OpenAIConfig."""
 
     def test_default_values(self) -> None:
-        """Test default configuration values."""
-        config = OpenAIConfig(api_key="sk-test123")
-        assert config.model == "gpt-4o-mini"
+        """Test default configuration values (GLM defaults, ignores local .env)."""
+        config = OpenAIConfig(_env_file=None, api_key="test-key-123")
+        assert config.model == "glm-4.6"
+        assert config.base_url == "https://open.bigmodel.cn/api/paas/v4/"
         assert config.max_tokens == 2000
         assert config.temperature == 0.0
         assert config.timeout == 30.0
 
-    def test_custom_values(self) -> None:
-        """Test custom configuration values."""
+    def test_custom_base_url_for_openai(self) -> None:
+        """Test pointing the config at the OpenAI endpoint."""
         config = OpenAIConfig(
             api_key="sk-custom",
-            model="gpt-4",
-            max_tokens=4000,
-            temperature=0.7,
-            timeout=60.0,
+            base_url="https://api.openai.com/v1/",
+            model="gpt-4o-mini",
         )
-        assert config.model == "gpt-4"
-        assert config.max_tokens == 4000
-        assert config.temperature == 0.7
-        assert config.timeout == 60.0
+        assert config.base_url == "https://api.openai.com/v1/"
+        assert config.model == "gpt-4o-mini"
 
-    def test_empty_api_key_rejected(self) -> None:
-        """Test empty API key is rejected."""
-        with pytest.raises(ValidationError, match="must not be empty"):
-            OpenAIConfig(api_key="")
+    def test_empty_api_key_allowed(self) -> None:
+        """Test empty API key is allowed (server starts before key is set)."""
+        config = OpenAIConfig(api_key="")
+        assert config.has_api_key is False
 
     def test_whitespace_api_key_rejected(self) -> None:
         """Test whitespace-only API key is rejected."""
-        with pytest.raises(ValidationError, match="must not be empty"):
+        with pytest.raises(ValidationError, match="blank whitespace"):
             OpenAIConfig(api_key="   ")
 
-    def test_invalid_api_key_format(self) -> None:
-        """Test API key must start with sk-."""
-        with pytest.raises(ValidationError, match="must start with 'sk-'"):
-            OpenAIConfig(api_key="invalid-key")
+    def test_non_sk_api_key_accepted(self) -> None:
+        """Test API keys without the sk- prefix (e.g. GLM keys) are accepted."""
+        config = OpenAIConfig(api_key="abcdef1234567890.deadbeef")
+        assert config.has_api_key is True
 
     def test_invalid_max_tokens(self) -> None:
         """Test invalid max_tokens is rejected."""
@@ -420,7 +405,7 @@ class TestMultiDatabaseSettings:
         analytics = settings.additional_databases[0]
         assert analytics.host == "a.host"
         assert analytics.user == "alice"
-        assert analytics.dsn == "postgresql://alice:pw1@a.host:5432/analytics"
+        assert analytics.safe_dsn == "postgresql://alice:***@a.host:5432/analytics"
         # Unspecified fields fall back to built-in defaults
         archive = settings.additional_databases[1]
         assert archive.port == 5433

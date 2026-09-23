@@ -325,6 +325,22 @@ async def query(
             },
         }
 
+    # Validate question length against the configured limit
+    # (ValidationConfig.max_question_length, enforced here because the
+    # QueryRequest model uses a static bound)
+    max_question_length = (
+        _settings.validation.max_question_length if _settings is not None else 10000
+    )
+    if len(question) > max_question_length:
+        return {
+            "success": False,
+            "error": {
+                "code": "INVALID_PARAMETER",
+                "message": (f"Question exceeds maximum length of {max_question_length} characters"),
+                "details": {"question_length": len(question), "max": max_question_length},
+            },
+        }
+
     # Build request
     try:
         request = QueryRequest(

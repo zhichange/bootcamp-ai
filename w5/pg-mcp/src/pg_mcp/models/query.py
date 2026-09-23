@@ -127,14 +127,6 @@ class QueryResult(BaseModel):
             return len(info.data["rows"])
         return v
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert result to dictionary.
-
-        Returns:
-            dict: Dictionary representation of query result.
-        """
-        return self.model_dump()
-
 
 class ErrorDetail(BaseModel):
     """Detailed error information."""

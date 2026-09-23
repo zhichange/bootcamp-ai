@@ -27,7 +27,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class DatabaseConfig(BaseSettings):
     """PostgreSQL database connection configuration."""
 
-    model_config = SettingsConfigDict(env_prefix="DATABASE_")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="DATABASE_",
+        extra="ignore",
+    )
 
     host: str = Field(default="localhost", description="Database host")
     port: int = Field(default=5432, ge=1, le=65535, description="Database port")
@@ -46,23 +51,35 @@ class DatabaseConfig(BaseSettings):
     )
 
     @property
-    def dsn(self) -> str:
-        """Build PostgreSQL DSN connection string."""
-        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
-
-    @property
     def safe_dsn(self) -> str:
         """Build DSN with masked password for logging."""
         return f"postgresql://{self.user}:***@{self.host}:{self.port}/{self.name}"
 
 
 class OpenAIConfig(BaseSettings):
-    """OpenAI API configuration."""
+    """OpenAI-compatible API configuration.
 
-    model_config = SettingsConfigDict(env_prefix="OPENAI_")
+    Works with any OpenAI-compatible endpoint. Defaults target Zhipu GLM
+    (https://open.bigmodel.cn/api/paas/v4/); set ``OPENAI_BASE_URL`` to
+    point at another provider (e.g. OpenAI itself).
+    """
 
-    api_key: SecretStr = Field(default=SecretStr(""), description="OpenAI API key")
-    model: str = Field(default="gpt-4o-mini", description="Model to use for SQL generation")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="OPENAI_",
+        extra="ignore",
+    )
+
+    api_key: SecretStr = Field(default=SecretStr(""), description="LLM API key")
+    base_url: str = Field(
+        default="https://open.bigmodel.cn/api/paas/v4/",
+        description=(
+            "OpenAI-compatible API base URL. Defaults to Zhipu GLM; "
+            "set to https://api.openai.com/v1/ for OpenAI."
+        ),
+    )
+    model: str = Field(default="glm-4.6", description="Model to use for SQL generation")
     max_tokens: int = Field(default=2000, ge=100, le=4096, description="Maximum tokens in response")
     temperature: float = Field(
         default=0.0, ge=0.0, le=2.0, description="Temperature for response randomness"
@@ -74,19 +91,40 @@ class OpenAIConfig(BaseSettings):
     @field_validator("api_key")
     @classmethod
     def validate_api_key(cls, v: SecretStr) -> SecretStr:
-        """Validate API key is not empty and has correct format."""
+        """Validate API key format when provided.
+
+        An empty key is allowed so the server can start before credentials
+        are configured; LLM calls fail with a clear error at call time.
+
+        Args:
+            v: The API key as a SecretStr.
+
+        Returns:
+            SecretStr: The validated API key.
+
+        Raises:
+            ValueError: If the key contains only whitespace.
+        """
         api_key_str = v.get_secret_value()
-        if not api_key_str or not api_key_str.strip():
-            raise ValueError("OpenAI API key must not be empty")
-        if not api_key_str.startswith("sk-"):
-            raise ValueError("OpenAI API key must start with 'sk-'")
+        if api_key_str and not api_key_str.strip():
+            raise ValueError("OpenAI API key must not be blank whitespace")
         return v
+
+    @property
+    def has_api_key(self) -> bool:
+        """Check whether a non-empty API key is configured."""
+        return bool(self.api_key.get_secret_value().strip())
 
 
 class SecurityConfig(BaseSettings):
     """Security and access control configuration."""
 
-    model_config = SettingsConfigDict(env_prefix="SECURITY_")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="SECURITY_",
+        extra="ignore",
+    )
 
     blocked_functions: str | list[str] = Field(
         default_factory=lambda: [
@@ -143,7 +181,12 @@ class SecurityConfig(BaseSettings):
 class ValidationConfig(BaseSettings):
     """Query validation configuration."""
 
-    model_config = SettingsConfigDict(env_prefix="VALIDATION_")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="VALIDATION_",
+        extra="ignore",
+    )
 
     max_question_length: int = Field(
         default=10000, ge=1, le=50000, description="Maximum question length in characters"
@@ -165,7 +208,12 @@ class ValidationConfig(BaseSettings):
 class CacheConfig(BaseSettings):
     """Schema cache configuration."""
 
-    model_config = SettingsConfigDict(env_prefix="CACHE_")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="CACHE_",
+        extra="ignore",
+    )
 
     schema_ttl: int = Field(
         default=3600, ge=60, le=86400, description="Schema cache TTL in seconds"
@@ -177,7 +225,12 @@ class CacheConfig(BaseSettings):
 class ResilienceConfig(BaseSettings):
     """Resilience and fault tolerance configuration."""
 
-    model_config = SettingsConfigDict(env_prefix="RESILIENCE_")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="RESILIENCE_",
+        extra="ignore",
+    )
 
     max_retries: int = Field(default=3, ge=0, le=10, description="Maximum retry attempts")
     retry_delay: float = Field(
@@ -203,7 +256,12 @@ class ResilienceConfig(BaseSettings):
 class ObservabilityConfig(BaseSettings):
     """Observability and monitoring configuration."""
 
-    model_config = SettingsConfigDict(env_prefix="OBSERVABILITY_")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_prefix="OBSERVABILITY_",
+        extra="ignore",
+    )
 
     metrics_enabled: bool = Field(default=True, description="Enable Prometheus metrics")
     metrics_port: int = Field(

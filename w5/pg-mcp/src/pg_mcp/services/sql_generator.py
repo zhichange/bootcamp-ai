@@ -42,7 +42,26 @@ class SQLGenerator:
             config: OpenAI configuration including API key and model settings.
         """
         self.config = config
-        self.client = AsyncOpenAI(api_key=config.api_key.get_secret_value(), timeout=config.timeout)
+        self.client = AsyncOpenAI(
+            api_key=config.api_key.get_secret_value(),
+            base_url=config.base_url,
+            timeout=config.timeout,
+        )
+
+    def _ensure_api_key(self) -> None:
+        """Ensure an API key is configured before making an LLM call.
+
+        Raises:
+            LLMUnavailableError: If no API key is configured.
+        """
+        if not self.config.has_api_key:
+            raise LLMUnavailableError(
+                message=(
+                    "LLM API key is not configured. Set OPENAI_API_KEY in .env "
+                    "(GLM keys work as-is with the default base_url)."
+                ),
+                details={"base_url": self.config.base_url},
+            )
 
     async def generate(
         self,
@@ -87,6 +106,7 @@ class SQLGenerator:
             ...     error_feedback='relation "user" does not exist'
             ... )
         """
+        self._ensure_api_key()
         user_prompt = build_user_prompt(
             question=question,
             schema=schema,
@@ -107,45 +127,45 @@ class SQLGenerator:
             )
         except TimeoutError as e:
             raise LLMTimeoutError(
-                message=f"OpenAI API request timed out after {self.config.timeout}s",
+                message=f"LLM API request timed out after {self.config.timeout}s",
                 details={"timeout": self.config.timeout},
             ) from e
         except Exception as e:
-            # Handle various OpenAI errors
+            # Handle various OpenAI-compatible API errors
             error_msg = str(e)
             if "authentication" in error_msg.lower() or "api_key" in error_msg.lower():
                 raise LLMUnavailableError(
-                    message="OpenAI API authentication failed - check API key",
+                    message="LLM API authentication failed - check API key",
                     details={"error": error_msg},
                 ) from e
             if "rate_limit" in error_msg.lower():
                 raise LLMUnavailableError(
-                    message="OpenAI API rate limit exceeded",
+                    message="LLM API rate limit exceeded",
                     details={"error": error_msg},
                 ) from e
             raise LLMError(
-                message=f"OpenAI API request failed: {error_msg}",
+                message=f"LLM API request failed: {error_msg}",
                 details={"error": error_msg},
             ) from e
 
         # Extract SQL from response
         if not response.choices:
             raise LLMError(
-                message="OpenAI returned empty response",
+                message="LLM returned empty response",
                 details={"response": response.model_dump()},
             )
 
         content = response.choices[0].message.content
         if not content:
             raise LLMError(
-                message="OpenAI returned empty message content",
+                message="LLM returned empty message content",
                 details={"response": response.model_dump()},
             )
 
         sql = self._extract_sql(content)
         if not sql:
             raise LLMError(
-                message="Failed to extract SQL from OpenAI response",
+                message="Failed to extract SQL from LLM response",
                 details={"content": content},
             )
 

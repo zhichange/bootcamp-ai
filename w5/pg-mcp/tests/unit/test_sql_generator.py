@@ -4,6 +4,7 @@ This module tests the SQLGenerator class including SQL extraction logic,
 error handling, and OpenAI API integration (using mocks).
 """
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -543,5 +544,31 @@ LIMIT 10;"""
             with pytest.raises(LLMError) as exc_info:
                 await generator.generate("Count users", mock_schema)
 
-            assert "OpenAI API request failed" in str(exc_info.value)
+            assert "LLM API request failed" in str(exc_info.value)
             assert exc_info.value.details["error"] == "Unknown error occurred"
+
+
+class TestGLMCompatibility:
+    """Tests for OpenAI-compatible (GLM) configuration support."""
+
+    def test_base_url_passed_to_client(self) -> None:
+        """Test the custom base_url is forwarded to the AsyncOpenAI client."""
+        config = OpenAIConfig(
+            api_key="glm-key",
+            base_url="https://open.bigmodel.cn/api/paas/v4/",
+        )
+        generator = SQLGenerator(config)
+        assert str(generator.client.base_url).rstrip("/") == "https://open.bigmodel.cn/api/paas/v4"
+
+    def test_missing_api_key_raises_before_call(self) -> None:
+        """Test generate() fails fast when no API key is configured."""
+        config = OpenAIConfig(api_key="")
+        generator = SQLGenerator(config)
+
+        with pytest.raises(LLMUnavailableError, match="API key is not configured"):
+            asyncio.run(
+                generator.generate(
+                    question="q",
+                    schema=MagicMock(),
+                )
+            )

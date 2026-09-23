@@ -129,3 +129,34 @@ class TestLifespan:
             assert set(server_module._orchestrator.sql_executors.keys()) == {"maindb"}
 
         assert closed_pools == ["maindb"]
+
+
+class TestQuestionLengthLimit:
+    """Tests for the configurable question length limit wiring."""
+
+    @pytest.mark.asyncio
+    async def test_oversized_question_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test questions beyond max_question_length return INVALID_PARAMETER."""
+        monkeypatch.setattr(server_module, "_orchestrator", MagicMock())
+        monkeypatch.setattr(server_module, "_settings", None)  # default limit: 10000
+
+        from pg_mcp.server import query
+
+        result = await query(question="x" * 10001, return_type="sql")
+        assert result["success"] is False
+        assert result["error"]["code"] == "INVALID_PARAMETER"
+        assert result["error"]["details"]["max"] == 10000
+
+    @pytest.mark.asyncio
+    async def test_configured_limit_is_enforced(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test the configured max_question_length overrides the default."""
+        settings = MagicMock()
+        settings.validation.max_question_length = 10
+        monkeypatch.setattr(server_module, "_orchestrator", MagicMock())
+        monkeypatch.setattr(server_module, "_settings", settings)
+
+        from pg_mcp.server import query
+
+        result = await query(question="x" * 11, return_type="sql")
+        assert result["success"] is False
+        assert result["error"]["details"]["max"] == 10
