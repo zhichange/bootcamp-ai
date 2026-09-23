@@ -1,0 +1,8 @@
+src\pg_mcp\services\result_validator.py       49     11     12      1    74%
+src\pg_mcp\services\sql_executor.py           71      1     24      0    99%
+src\pg_mcp\services\sql_generator.py          49      1     18      1    97%
+src\pg_mcp\services\sql_validator.py         120     11     68      8    89%
+----------------------------------------------------------------------------
+TOTAL                                       1565    153    368     42    89%
+Required test coverage of 80.0% reached. Total coverage: 88.57%
+============================ 305 passed in 12.55s =============================

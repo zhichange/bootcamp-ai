@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body { font-family: Consolas, monospace; background:#f6f8fa; margin:0; padding:20px; }
+h1 { font-family:'Segoe UI',sans-serif; font-size:20px; color:#1f2328; margin:0 0 10px 0;}
+pre { background:#0d1117; color:#c9d1d9; padding:14px; border-radius:8px; font-size:13.5px; white-space:pre-wrap; }
+.badge { display:inline-block; background:#1a7f37; color:#fff; padding:2px 10px; border-radius:12px; margin:0 8px 8px 0; font-family:'Segoe UI',sans-serif; font-size:13px;}
+</style></head><body><h1>证据 5/5 — 5. 可观测性-指标：Prometheus pg_mcp_* 指标 + 测试覆盖摘要</h1><p><span class="badge">ruff: All checks passed!</span><span class="badge">mypy: 30 files, no issues</span><span class="badge">pytest: 305 passed</span><span class="badge">coverage: 88.57% (&ge;80%)</span></p><pre>  pg_mcp_query_requests_total{status=success,database=sales} = 2.0
+  pg_mcp_query_requests_total{status=success,database=maindb} = 1.0
+  pg_mcp_query_duration_seconds_count = 3.0
+  pg_mcp_llm_calls_total{operation=generate_sql} = 6.0
+  pg_mcp_sql_rejected_total{reason=security_violation} = 2.0
+
+  (链路追踪 request_id 已贯穿请求生命周期，本次上下文: None)
+
+
+  演示结束
+
+
+--- uv run pytest tests/unit --cov=src 摘要 ---
+src\pg_mcp\services\result_validator.py       49     11     12      1    74%
+src\pg_mcp\services\sql_executor.py           71      1     24      0    99%
+src\pg_mcp\services\sql_generator.py          49      1     18      1    97%
+src\pg_mcp\services\sql_validator.py         120     11     68      8    89%
+----------------------------------------------------------------------------
+TOTAL                                       1565    153    368     42    89%
+Required test coverage of 80.0% reached. Total coverage: 88.57%
+============================ 305 passed in 12.55s =============================
+</pre></body></html>

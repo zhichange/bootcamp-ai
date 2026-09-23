@@ -1,0 +1,12 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body { font-family: Consolas, monospace; background:#f6f8fa; margin:0; padding:20px; }
+h1 { font-family:'Segoe UI',sans-serif; font-size:20px; color:#1f2328; margin:0 0 10px 0;}
+pre { background:#0d1117; color:#c9d1d9; padding:14px; border-radius:8px; font-size:13.5px; white-space:pre-wrap; }
+.badge { display:inline-block; background:#1a7f37; color:#fff; padding:2px 10px; border-radius:12px; margin:0 8px 8px 0; font-family:'Segoe UI',sans-serif; font-size:13px;}
+</style></head><body><h1>证据 4/5 — 4. 弹性-重试退避：验证失败后按指数退避重试</h1><p><span class="badge">ruff: All checks passed!</span><span class="badge">mypy: 30 files, no issues</span><span class="badge">pytest: 305 passed</span><span class="badge">coverage: 88.57% (&ge;80%)</span></p><pre>  max_retries=3, retry_delay=0.2s, backoff_factor=2.0
+  第1次生成 DELETE(被拒) -&gt; 退避 0.20s
+  第2次生成 DROP(被拒)   -&gt; 退避 0.40s
+  第3次生成 SELECT(通过)，最终 SQL: SELECT 1
+  实测退避序列: [&#x27;0.20&#x27;, &#x27;0.40&#x27;] (期望 [0.20, 0.40])
+
+</pre></body></html>

@@ -4,10 +4,12 @@ Tests for all configuration classes to ensure proper validation,
 defaults, and environment variable parsing.
 """
 
+import json
 import os
 
 import pytest
 from pydantic import ValidationError
+from pydantic_settings.exceptions import SettingsError
 
 from pg_mcp.config.settings import (
     CacheConfig,
@@ -157,7 +159,9 @@ class TestSecurityConfig:
     def test_default_values(self) -> None:
         """Test default configuration values."""
         config = SecurityConfig()
-        assert config.allow_write_operations is False
+        assert config.blocked_tables == []
+        assert config.blocked_columns == []
+        assert config.allow_explain is False
         assert config.max_rows == 10000
         assert config.max_execution_time == 30.0
         assert "pg_sleep" in config.blocked_functions
@@ -179,10 +183,20 @@ class TestSecurityConfig:
         assert "func2" in config.blocked_functions
         assert "func3" in config.blocked_functions
 
-    def test_allow_write_operations(self) -> None:
-        """Test enabling write operations."""
-        config = SecurityConfig(allow_write_operations=True)
-        assert config.allow_write_operations is True
+    def test_blocked_tables_from_string(self) -> None:
+        """Test parsing blocked tables from comma-separated string."""
+        config = SecurityConfig(blocked_tables="salaries, audit_log")  # type: ignore
+        assert config.blocked_tables == ["salaries", "audit_log"]
+
+    def test_blocked_columns_from_string(self) -> None:
+        """Test parsing blocked columns from comma-separated string."""
+        config = SecurityConfig(blocked_columns="password_hash, orders.ssn")  # type: ignore
+        assert config.blocked_columns == ["password_hash", "orders.ssn"]
+
+    def test_allow_explain(self) -> None:
+        """Test allow_explain flag."""
+        assert SecurityConfig(allow_explain=True).allow_explain is True
+        assert SecurityConfig().allow_explain is False
 
     def test_invalid_max_rows(self) -> None:
         """Test invalid max_rows is rejected."""
@@ -200,24 +214,24 @@ class TestValidationConfig:
         """Test default configuration values."""
         config = ValidationConfig()
         assert config.max_question_length == 10000
-        assert config.min_confidence_score == 70
+        assert config.confidence_threshold == 70
 
     def test_custom_values(self) -> None:
         """Test custom configuration values."""
         config = ValidationConfig(
             max_question_length=5000,
-            min_confidence_score=80,
+            confidence_threshold=80,
         )
         assert config.max_question_length == 5000
-        assert config.min_confidence_score == 80
+        assert config.confidence_threshold == 80
 
-    def test_invalid_confidence_score(self) -> None:
-        """Test invalid confidence score is rejected."""
+    def test_invalid_confidence_threshold(self) -> None:
+        """Test invalid confidence threshold is rejected."""
         with pytest.raises(ValidationError):
-            ValidationConfig(min_confidence_score=-1)
+            ValidationConfig(confidence_threshold=-1)
 
         with pytest.raises(ValidationError):
-            ValidationConfig(min_confidence_score=101)
+            ValidationConfig(confidence_threshold=101)
 
 
 class TestCacheConfig:
@@ -261,6 +275,8 @@ class TestResilienceConfig:
         assert config.backoff_factor == 2.0
         assert config.circuit_breaker_threshold == 5
         assert config.circuit_breaker_timeout == 60.0
+        assert config.max_concurrent_queries == 10
+        assert config.max_concurrent_llm_calls == 5
 
     def test_custom_values(self) -> None:
         """Test custom configuration values."""
@@ -360,12 +376,97 @@ class TestSettings:
                 port=5433,
             ),
             security=SecurityConfig(
-                allow_write_operations=True,
+                blocked_tables=["salaries"],
             ),
         )
         assert settings.database.host == "custom.host"
         assert settings.database.port == 5433
-        assert settings.security.allow_write_operations is True
+        assert settings.security.blocked_tables == ["salaries"]
+
+
+class TestMultiDatabaseSettings:
+    """Tests for multi-database configuration via DATABASES env var."""
+
+    @pytest.fixture(autouse=True)
+    def clean_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Remove DATABASES env var before and after each test."""
+        monkeypatch.delenv("DATABASES", raising=False)
+
+    def test_no_additional_databases_by_default(self) -> None:
+        """Test that only the primary database exists by default."""
+        settings = Settings(openai=OpenAIConfig(api_key="sk-test"))
+        assert settings.additional_databases == []
+        assert [db.name for db in settings.all_databases] == [settings.database.name]
+
+    def test_databases_from_json_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test parsing additional databases from DATABASES JSON env var."""
+        monkeypatch.setenv(
+            "DATABASES",
+            json.dumps(
+                [
+                    {"name": "analytics", "host": "a.host", "user": "alice", "password": "pw1"},
+                    {"name": "archive", "host": "b.host", "port": 5433},
+                ]
+            ),
+        )
+        settings = Settings(openai=OpenAIConfig(api_key="sk-test"))
+
+        assert len(settings.additional_databases) == 2
+        assert [db.name for db in settings.all_databases] == [
+            settings.database.name,
+            "analytics",
+            "archive",
+        ]
+        analytics = settings.additional_databases[0]
+        assert analytics.host == "a.host"
+        assert analytics.user == "alice"
+        assert analytics.dsn == "postgresql://alice:pw1@a.host:5432/analytics"
+        # Unspecified fields fall back to built-in defaults
+        archive = settings.additional_databases[1]
+        assert archive.port == 5433
+        assert archive.min_pool_size == 5
+
+    def test_databases_empty_json(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test empty DATABASES JSON array."""
+        monkeypatch.setenv("DATABASES", "[]")
+        settings = Settings(openai=OpenAIConfig(api_key="sk-test"))
+        assert settings.additional_databases == []
+
+    def test_databases_missing_name_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test DATABASES entry without name is rejected."""
+        monkeypatch.setenv("DATABASES", json.dumps([{"host": "localhost"}]))
+        with pytest.raises(ValidationError, match="'name'"):
+            Settings(openai=OpenAIConfig(api_key="sk-test"))
+
+    def test_databases_invalid_json_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test malformed DATABASES JSON is rejected."""
+        monkeypatch.setenv("DATABASES", "not-json")
+        with pytest.raises((ValidationError, SettingsError)):
+            Settings(openai=OpenAIConfig(api_key="sk-test"))
+
+    def test_databases_non_object_entry_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test DATABASES entries must be JSON objects."""
+        monkeypatch.setenv("DATABASES", '["db2"]')
+        with pytest.raises(ValidationError, match="JSON object"):
+            Settings(openai=OpenAIConfig(api_key="sk-test"))
+
+    def test_databases_duplicate_names_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test duplicate names among additional databases are rejected."""
+        monkeypatch.setenv(
+            "DATABASES",
+            json.dumps([{"name": "db2"}, {"name": "db2"}]),
+        )
+        with pytest.raises(ValidationError, match="Duplicate database names"):
+            Settings(openai=OpenAIConfig(api_key="sk-test"))
+
+    def test_databases_name_collides_with_primary_rejected(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test additional database with same name as primary is rejected."""
+        monkeypatch.setenv("DATABASE_NAME", "mydb")
+        monkeypatch.setenv("DATABASES", json.dumps([{"name": "mydb"}]))
+        with pytest.raises(ValidationError, match="Duplicate database names"):
+            Settings(openai=OpenAIConfig(api_key="sk-test"))
 
 
 class TestSettingsGlobalInstance:

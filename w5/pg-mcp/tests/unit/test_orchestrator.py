@@ -4,6 +4,7 @@ This module tests the orchestrator's coordination of the query pipeline,
 including retry logic, error handling, and integration with all components.
 """
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -22,7 +23,33 @@ from pg_mcp.models.query import (
 )
 from pg_mcp.models.schema import ColumnInfo, DatabaseSchema, TableInfo
 from pg_mcp.resilience.circuit_breaker import CircuitState
+from pg_mcp.resilience.rate_limiter import MultiRateLimiter
+from pg_mcp.services import orchestrator as orchestrator_module
 from pg_mcp.services.orchestrator import QueryOrchestrator
+from pg_mcp.services.sql_executor import SQLExecutor
+
+
+@pytest.fixture(autouse=True)
+def fast_retry_backoff(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    """Replace retry backoff sleeps with a recorder so tests stay fast.
+
+    Zero-length sleeps still yield to the event loop so that scheduled
+    tasks (e.g. rate limiter counter decrements) behave normally.
+
+    Returns:
+        list[float]: Recorded backoff delays in seconds.
+    """
+    delays: list[float] = []
+    real_sleep = asyncio.sleep
+
+    async def fake_sleep(delay: float) -> None:
+        if delay == 0:
+            await real_sleep(0)
+        else:
+            delays.append(delay)
+
+    monkeypatch.setattr(orchestrator_module.asyncio, "sleep", fake_sleep)
+    return delays
 
 
 class TestDatabaseResolution:
@@ -42,7 +69,7 @@ class TestDatabaseResolution:
         return QueryOrchestrator(
             sql_generator=MagicMock(),
             sql_validator=MagicMock(),
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=MagicMock(),
             pools=mock_pools,
@@ -69,7 +96,7 @@ class TestDatabaseResolution:
         orchestrator = QueryOrchestrator(
             sql_generator=MagicMock(),
             sql_validator=MagicMock(),
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=MagicMock(),
             pools={"only_db": MagicMock()},
@@ -95,7 +122,7 @@ class TestDatabaseResolution:
         orchestrator = QueryOrchestrator(
             sql_generator=MagicMock(),
             sql_validator=MagicMock(),
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=MagicMock(),
             pools={},
@@ -152,7 +179,7 @@ class TestSQLGenerationWithRetry:
         orchestrator = QueryOrchestrator(
             sql_generator=mock_generator,
             sql_validator=mock_validator,
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=MagicMock(),
             pools={"test_db": MagicMock()},
@@ -196,7 +223,7 @@ class TestSQLGenerationWithRetry:
         orchestrator = QueryOrchestrator(
             sql_generator=mock_generator,
             sql_validator=mock_validator,
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=MagicMock(),
             pools={"test_db": MagicMock()},
@@ -237,7 +264,7 @@ class TestSQLGenerationWithRetry:
         orchestrator = QueryOrchestrator(
             sql_generator=mock_generator,
             sql_validator=mock_validator,
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=MagicMock(),
             pools={"test_db": MagicMock()},
@@ -264,7 +291,7 @@ class TestSQLGenerationWithRetry:
         orchestrator = QueryOrchestrator(
             sql_generator=AsyncMock(),
             sql_validator=MagicMock(),
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=MagicMock(),
             pools={"test_db": MagicMock()},
@@ -296,7 +323,7 @@ class TestSQLGenerationWithRetry:
         orchestrator = QueryOrchestrator(
             sql_generator=mock_generator,
             sql_validator=MagicMock(),
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=MagicMock(),
             pools={"test_db": MagicMock()},
@@ -332,7 +359,7 @@ class TestResultValidation:
         orchestrator = QueryOrchestrator(
             sql_generator=MagicMock(),
             sql_validator=MagicMock(),
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=mock_validator,
             schema_cache=MagicMock(),
             pools={"test_db": MagicMock()},
@@ -359,7 +386,7 @@ class TestResultValidation:
         orchestrator = QueryOrchestrator(
             sql_generator=MagicMock(),
             sql_validator=MagicMock(),
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=mock_validator,
             schema_cache=MagicMock(),
             pools={"test_db": MagicMock()},
@@ -387,7 +414,7 @@ class TestResultValidation:
         orchestrator = QueryOrchestrator(
             sql_generator=MagicMock(),
             sql_validator=MagicMock(),
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=mock_validator,
             schema_cache=MagicMock(),
             pools={"test_db": MagicMock()},
@@ -453,7 +480,7 @@ class TestExecuteQueryFlow:
         orchestrator = QueryOrchestrator(
             sql_generator=mock_generator,
             sql_validator=mock_validator,
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=mock_cache,
             pools={"test_db": MagicMock()},
@@ -510,7 +537,7 @@ class TestExecuteQueryFlow:
         orchestrator = QueryOrchestrator(
             sql_generator=mock_generator,
             sql_validator=mock_validator,
-            sql_executor=mock_executor,
+            sql_executors={"test_db": mock_executor},
             result_validator=mock_result_validator,
             schema_cache=mock_cache,
             pools={"test_db": MagicMock()},
@@ -561,7 +588,7 @@ class TestExecuteQueryFlow:
         orchestrator = QueryOrchestrator(
             sql_generator=mock_generator,
             sql_validator=mock_validator,
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=mock_cache,
             pools={"test_db": mock_pool},
@@ -592,7 +619,7 @@ class TestExecuteQueryFlow:
         orchestrator = QueryOrchestrator(
             sql_generator=MagicMock(),
             sql_validator=MagicMock(),
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=mock_cache,
             pools={"test_db": MagicMock()},
@@ -636,7 +663,7 @@ class TestExecuteQueryFlow:
         orchestrator = QueryOrchestrator(
             sql_generator=mock_generator,
             sql_validator=mock_validator,
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=mock_cache,
             pools={"test_db": MagicMock()},
@@ -677,7 +704,7 @@ class TestExecuteQueryFlow:
         orchestrator = QueryOrchestrator(
             sql_generator=mock_generator,
             sql_validator=mock_validator,
-            sql_executor=mock_executor,
+            sql_executors={"test_db": mock_executor},
             result_validator=MagicMock(),
             schema_cache=mock_cache,
             pools={"test_db": MagicMock()},
@@ -709,7 +736,7 @@ class TestExecuteQueryFlow:
         orchestrator = QueryOrchestrator(
             sql_generator=MagicMock(),
             sql_validator=MagicMock(),
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=mock_cache,
             pools={"test_db": MagicMock()},
@@ -747,7 +774,7 @@ class TestExecuteQueryFlow:
         orchestrator = QueryOrchestrator(
             sql_generator=mock_generator,
             sql_validator=mock_validator,
-            sql_executor=MagicMock(),
+            sql_executors={"test_db": MagicMock()},
             result_validator=MagicMock(),
             schema_cache=mock_cache,
             pools={"only_db": MagicMock()},  # Only one database
@@ -767,3 +794,324 @@ class TestExecuteQueryFlow:
         assert response.success is True
         # Verify schema was fetched for auto-selected database
         mock_cache.get.assert_called_once_with("only_db")
+
+
+class TestMultiExecutorRouting:
+    """Test per-database executor routing."""
+
+    @pytest.fixture
+    def mock_schema(self) -> DatabaseSchema:
+        """Create mock database schema."""
+        return DatabaseSchema(
+            database_name="db2",
+            tables=[
+                TableInfo(
+                    schema_name="public",
+                    table_name="users",
+                    columns=[
+                        ColumnInfo(name="id", data_type="integer", is_nullable=False),
+                    ],
+                )
+            ],
+            version="15.0",
+        )
+
+    @pytest.mark.asyncio
+    async def test_request_routed_to_requested_database_executor(
+        self, mock_schema: DatabaseSchema
+    ) -> None:
+        """Test that a request for db2 is executed by db2's executor."""
+        executor_db1 = AsyncMock(spec=SQLExecutor)
+        executor_db2 = AsyncMock(spec=SQLExecutor)
+        executor_db2.execute.return_value = ([{"id": 1}], 1)
+
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = mock_schema
+
+        mock_generator = AsyncMock()
+        mock_generator.generate.return_value = "SELECT id FROM users"
+
+        orchestrator = QueryOrchestrator(
+            sql_generator=mock_generator,
+            sql_validator=MagicMock(),
+            sql_executors={"db1": executor_db1, "db2": executor_db2},
+            result_validator=MagicMock(),
+            schema_cache=mock_cache,
+            pools={"db1": MagicMock(), "db2": MagicMock()},
+            resilience_config=ResilienceConfig(),
+            validation_config=ValidationConfig(enabled=False),
+        )
+
+        request = QueryRequest(question="Get users", database="db2")
+        response = await orchestrator.execute_query(request)
+
+        assert response.success is True
+        executor_db2.execute.assert_awaited_once()
+        executor_db1.execute.assert_not_awaited()
+
+    def test_get_executor_unknown_database(self) -> None:
+        """Test _get_executor raises for an unknown database."""
+        orchestrator = QueryOrchestrator(
+            sql_generator=MagicMock(),
+            sql_validator=MagicMock(),
+            sql_executors={"db1": MagicMock()},
+            result_validator=MagicMock(),
+            schema_cache=MagicMock(),
+            pools={"db1": MagicMock()},
+            resilience_config=ResilienceConfig(),
+            validation_config=ValidationConfig(),
+        )
+
+        with pytest.raises(DatabaseError) as exc_info:
+            orchestrator._get_executor("missing_db")
+
+        assert "missing_db" in str(exc_info.value)
+        assert "db1" in exc_info.value.details["available_databases"]
+
+
+class TestRateLimiting:
+    """Test rate limiting integration in the orchestrator."""
+
+    def _make_orchestrator(
+        self,
+        rate_limiter: MultiRateLimiter,
+    ) -> tuple[QueryOrchestrator, AsyncMock]:
+        """Build an orchestrator with mocked pipeline components."""
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = MagicMock(tables=[])
+
+        mock_generator = AsyncMock()
+        mock_generator.generate.return_value = "SELECT 1"
+
+        mock_validator = MagicMock()
+        mock_validator.validate_or_raise.return_value = None
+
+        mock_executor = AsyncMock(spec=SQLExecutor)
+        mock_executor.execute.return_value = ([{"id": 1}], 1)
+
+        orchestrator = QueryOrchestrator(
+            sql_generator=mock_generator,
+            sql_validator=mock_validator,
+            sql_executors={"test_db": mock_executor},
+            result_validator=MagicMock(),
+            schema_cache=mock_cache,
+            pools={"test_db": MagicMock()},
+            resilience_config=ResilienceConfig(max_retries=0),
+            validation_config=ValidationConfig(enabled=False),
+            rate_limiter=rate_limiter,
+            rate_limit_timeout=0.05,
+        )
+        return orchestrator, mock_generator
+
+    @pytest.mark.asyncio
+    async def test_query_rate_limit_rejects_request(self) -> None:
+        """Test that a request is rejected when the query limiter is saturated."""
+        limiter = MultiRateLimiter(query_limit=1, llm_limit=1)
+        acquired = await limiter.query_limiter.acquire()
+        assert acquired
+
+        orchestrator, _generator = self._make_orchestrator(limiter)
+        request = QueryRequest(question="Get users", database="test_db")
+        response = await orchestrator.execute_query(request)
+
+        assert response.success is False
+        assert response.error is not None
+        assert response.error.code == "rate_limit_exceeded"
+        limiter.query_limiter.release()
+
+    @pytest.mark.asyncio
+    async def test_llm_rate_limit_rejects_request(self) -> None:
+        """Test that LLM generation is rejected when the LLM limiter is saturated."""
+        limiter = MultiRateLimiter(query_limit=1, llm_limit=1)
+        acquired = await limiter.llm_limiter.acquire()
+        assert acquired
+
+        orchestrator, generator = self._make_orchestrator(limiter)
+        request = QueryRequest(question="Get users", database="test_db", return_type=ReturnType.SQL)
+        response = await orchestrator.execute_query(request)
+
+        assert response.success is False
+        assert response.error is not None
+        assert response.error.code == "rate_limit_exceeded"
+        generator.generate.assert_not_awaited()
+        limiter.llm_limiter.release()
+
+    @pytest.mark.asyncio
+    async def test_rate_limiter_released_after_request(self) -> None:
+        """Test that the query slot is released after a successful request."""
+        limiter = MultiRateLimiter(query_limit=1, llm_limit=1)
+        orchestrator, _generator = self._make_orchestrator(limiter)
+
+        request = QueryRequest(question="Get users", database="test_db")
+        response = await orchestrator.execute_query(request)
+
+        assert response.success is True
+        # release() schedules the counter decrement as a task; yield to let it run
+        for _ in range(3):
+            await asyncio.sleep(0)
+        assert limiter.query_limiter.active_count == 0
+
+
+class TestRetryBackoff:
+    """Test exponential backoff between SQL generation retries."""
+
+    @pytest.fixture
+    def mock_schema(self) -> DatabaseSchema:
+        """Create mock database schema."""
+        return DatabaseSchema(database_name="test_db", tables=[], version="15.0")
+
+    @pytest.mark.asyncio
+    async def test_backoff_delays_follow_exponential_schedule(
+        self, mock_schema: DatabaseSchema, fast_retry_backoff: list[float]
+    ) -> None:
+        """Test delays match retry_delay * backoff_factor ** attempt."""
+        mock_generator = AsyncMock()
+        mock_generator.generate.return_value = "DELETE FROM users;"
+
+        mock_validator = MagicMock()
+        mock_validator.validate_or_raise.side_effect = SecurityViolationError("nope")
+
+        orchestrator = QueryOrchestrator(
+            sql_generator=mock_generator,
+            sql_validator=mock_validator,
+            sql_executors={"test_db": MagicMock()},
+            result_validator=MagicMock(),
+            schema_cache=MagicMock(),
+            pools={"test_db": MagicMock()},
+            resilience_config=ResilienceConfig(max_retries=3, retry_delay=0.5, backoff_factor=3.0),
+            validation_config=ValidationConfig(),
+        )
+
+        with pytest.raises(SecurityViolationError):
+            await orchestrator._generate_sql_with_retry(
+                question="q", schema=mock_schema, request_id="r1"
+            )
+
+        # 3 retries happen after attempts 1, 2, 3 with delays 0.5, 1.5, 4.5
+        assert fast_retry_backoff == [0.5, 1.5, 4.5]
+        assert mock_generator.generate.call_count == 4
+
+    @pytest.mark.asyncio
+    async def test_no_backoff_after_final_attempt(
+        self, mock_schema: DatabaseSchema, fast_retry_backoff: list[float]
+    ) -> None:
+        """Test no sleep occurs after the final failed attempt."""
+        mock_generator = AsyncMock()
+        mock_generator.generate.return_value = "SELECT 1"
+
+        mock_validator = MagicMock()
+        mock_validator.validate_or_raise.return_value = None
+
+        orchestrator = QueryOrchestrator(
+            sql_generator=mock_generator,
+            sql_validator=mock_validator,
+            sql_executors={"test_db": MagicMock()},
+            result_validator=MagicMock(),
+            schema_cache=MagicMock(),
+            pools={"test_db": MagicMock()},
+            resilience_config=ResilienceConfig(max_retries=2),
+            validation_config=ValidationConfig(),
+        )
+
+        sql, _validation, _tokens = await orchestrator._generate_sql_with_retry(
+            question="q", schema=mock_schema, request_id="r1"
+        )
+
+        assert sql == "SELECT 1"
+        assert fast_retry_backoff == []
+
+
+class TestOrchestratorMetrics:
+    """Test metrics instrumentation in the query pipeline."""
+
+    @pytest.fixture
+    def mock_schema(self) -> DatabaseSchema:
+        """Create mock database schema."""
+        return DatabaseSchema(database_name="test_db", tables=[], version="15.0")
+
+    @staticmethod
+    def _request_counter(status: str, database: str) -> float | None:
+        from prometheus_client import REGISTRY
+
+        return REGISTRY.get_sample_value(
+            "pg_mcp_query_requests_total", {"status": status, "database": database}
+        )
+
+    @pytest.mark.asyncio
+    async def test_success_increments_request_counter(self, mock_schema: DatabaseSchema) -> None:
+        """Test successful requests increment the per-database counter."""
+        before = self._request_counter("success", "test_db") or 0.0
+
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = mock_schema
+
+        mock_generator = AsyncMock()
+        mock_generator.generate.return_value = "SELECT 1"
+
+        mock_validator = MagicMock()
+        mock_validator.validate_or_raise.return_value = None
+
+        orchestrator = QueryOrchestrator(
+            sql_generator=mock_generator,
+            sql_validator=mock_validator,
+            sql_executors={"test_db": AsyncMock()},
+            result_validator=MagicMock(),
+            schema_cache=mock_cache,
+            pools={"test_db": MagicMock()},
+            resilience_config=ResilienceConfig(max_retries=0),
+            validation_config=ValidationConfig(enabled=False),
+        )
+
+        response = await orchestrator.execute_query(
+            QueryRequest(question="q", database="test_db", return_type=ReturnType.SQL)
+        )
+
+        assert response.success is True
+        after = self._request_counter("success", "test_db") or 0.0
+        assert after == before + 1
+
+    @pytest.mark.asyncio
+    async def test_security_failure_increments_rejection_counter(
+        self, mock_schema: DatabaseSchema
+    ) -> None:
+        """Test rejected SQL increments the sql_rejected counter."""
+        from prometheus_client import REGISTRY
+
+        before = (
+            REGISTRY.get_sample_value("pg_mcp_sql_rejected_total", {"reason": "security_violation"})
+            or 0.0
+        )
+
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = mock_schema
+
+        mock_generator = AsyncMock()
+        mock_generator.generate.return_value = "DELETE FROM users;"
+
+        mock_validator = MagicMock()
+        mock_validator.validate_or_raise.side_effect = SecurityViolationError("DELETE")
+
+        orchestrator = QueryOrchestrator(
+            sql_generator=mock_generator,
+            sql_validator=mock_validator,
+            sql_executors={"test_db": MagicMock()},
+            result_validator=MagicMock(),
+            schema_cache=mock_cache,
+            pools={"test_db": MagicMock()},
+            resilience_config=ResilienceConfig(max_retries=0),
+            validation_config=ValidationConfig(enabled=False),
+        )
+
+        response = await orchestrator.execute_query(
+            QueryRequest(question="q", database="test_db", return_type=ReturnType.SQL)
+        )
+
+        assert response.success is False
+        assert response.error is not None
+        assert response.error.code == "security_violation"
+
+        after = (
+            REGISTRY.get_sample_value("pg_mcp_sql_rejected_total", {"reason": "security_violation"})
+            or 0.0
+        )
+        assert after == before + 1

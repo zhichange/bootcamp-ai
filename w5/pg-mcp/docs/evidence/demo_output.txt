@@ -1,0 +1,78 @@
+========================================================================
+  pg-mcp 功能演示: 多数据库 / 安全控制 / 限流 / 退避 / 指标
+========================================================================
+
+========================================================================
+  1. 多数据库支持：DATABASES JSON 配置 + 按库路由执行器
+========================================================================
+  配置的主库:      maindb
+  DATABASES 附加库: ['sales', 'archive']
+  全部可用数据库:   ['maindb', 'sales', 'archive']
+
+  [a] 指定 database='sales'      -> success=True
+      响应中 generated_sql='SELECT id, name FROM users'  (由 sales 执行器执行)
+
+  [b] 指定 database='wrongdb'    -> success=False
+      error.code=database_error
+      error.message=Database 'wrongdb' not found
+      available_databases=['maindb', 'sales', 'archive']
+
+  [c] 未指定 database(多库环境)  -> success=False
+      error.message=Multiple databases available, please specify which to query
+
+========================================================================
+  2. 安全控制：配置化封禁表 / 封禁列 / EXPLAIN 策略
+========================================================================
+  SECURITY_BLOCKED_TABLES=['salaries', 'audit_log']
+  SECURITY_BLOCKED_COLUMNS=['password_hash']
+  SECURITY_ALLOW_EXPLAIN=False
+
+  [PASS] 正常查询
+        SQL: SELECT * FROM users
+
+  [REJECTED] 访问封禁表 salaries
+        SQL: SELECT * FROM salaries  原因: Access to table 'salaries' is not allowed
+
+  [REJECTED] JOIN 封禁表 audit_log
+        SQL: SELECT u.name FROM users u JOIN audit_log a ON u.id = a.user_id  原因: Access to table 'audit_log' is not allowed
+
+  [REJECTED] 访问封禁列 password_hash
+        SQL: SELECT id, password_hash FROM users  原因: Access to column 'password_hash' is not allowed
+
+  [REJECTED] EXPLAIN(默认禁止)
+        SQL: EXPLAIN SELECT * FROM users  原因: EXPLAIN statements are not allowed
+
+  -- 打开 SECURITY_ALLOW_EXPLAIN=true 后 --
+  [PASS] EXPLAIN(已允许)
+
+========================================================================
+  3. 弹性-限流：并发打满后请求被拒绝 (rate_limit_exceeded)
+========================================================================
+  当前并发查询槽位: 1/1 已占用
+  新请求 -> success=False
+  error.code=rate_limit_exceeded
+  error.message=Query rate limit exceeded: too many concurrent requests, please retry later
+
+========================================================================
+  4. 弹性-重试退避：验证失败后按指数退避重试
+========================================================================
+  max_retries=3, retry_delay=0.2s, backoff_factor=2.0
+  第1次生成 DELETE(被拒) -> 退避 0.20s
+  第2次生成 DROP(被拒)   -> 退避 0.40s
+  第3次生成 SELECT(通过)，最终 SQL: SELECT 1
+  实测退避序列: ['0.20', '0.40'] (期望 [0.20, 0.40])
+
+========================================================================
+  5. 可观测性-指标：Prometheus pg_mcp_* 指标
+========================================================================
+  pg_mcp_query_requests_total{status=success,database=sales} = 2.0
+  pg_mcp_query_requests_total{status=success,database=maindb} = 1.0
+  pg_mcp_query_duration_seconds_count = 3.0
+  pg_mcp_llm_calls_total{operation=generate_sql} = 6.0
+  pg_mcp_sql_rejected_total{reason=security_violation} = 2.0
+
+  (链路追踪 request_id 已贯穿请求生命周期，本次上下文: None)
+
+========================================================================
+  演示结束
+========================================================================

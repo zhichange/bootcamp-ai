@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body { font-family: Consolas, monospace; background:#f6f8fa; margin:0; padding:20px; }
+h1 { font-family:'Segoe UI',sans-serif; font-size:20px; color:#1f2328; margin:0 0 10px 0;}
+pre { background:#0d1117; color:#c9d1d9; padding:14px; border-radius:8px; font-size:13.5px; white-space:pre-wrap; }
+.badge { display:inline-block; background:#1a7f37; color:#fff; padding:2px 10px; border-radius:12px; margin:0 8px 8px 0; font-family:'Segoe UI',sans-serif; font-size:13px;}
+</style></head><body><h1>证据 1/5 — 1. 多数据库支持：DATABASES JSON 配置 + 按库路由执行器</h1><p><span class="badge">ruff: All checks passed!</span><span class="badge">mypy: 30 files, no issues</span><span class="badge">pytest: 305 passed</span><span class="badge">coverage: 88.57% (&ge;80%)</span></p><pre>  配置的主库:      maindb
+  DATABASES 附加库: [&#x27;sales&#x27;, &#x27;archive&#x27;]
+  全部可用数据库:   [&#x27;maindb&#x27;, &#x27;sales&#x27;, &#x27;archive&#x27;]
+
+  [a] 指定 database=&#x27;sales&#x27;      -&gt; success=True
+      响应中 generated_sql=&#x27;SELECT id, name FROM users&#x27;  (由 sales 执行器执行)
+
+  [b] 指定 database=&#x27;wrongdb&#x27;    -&gt; success=False
+      error.code=database_error
+      error.message=Database &#x27;wrongdb&#x27; not found
+      available_databases=[&#x27;maindb&#x27;, &#x27;sales&#x27;, &#x27;archive&#x27;]
+
+  [c] 未指定 database(多库环境)  -&gt; success=False
+      error.message=Multiple databases available, please specify which to query
+
+</pre></body></html>

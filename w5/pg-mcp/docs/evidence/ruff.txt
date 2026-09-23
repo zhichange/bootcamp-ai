@@ -1,0 +1,275 @@
+F401 [*] `unittest.mock.AsyncMock` imported but unused
+  --> scripts\demo_features.py:21:27
+   |
+19 | import sys
+20 | import time
+21 | from unittest.mock import AsyncMock, MagicMock
+   |                           ^^^^^^^^^
+22 |
+23 | sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+   |
+help: Remove unused import: `unittest.mock.AsyncMock`
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --> scripts\demo_features.py:28:60
+   |
+26 | os.environ.setdefault("OPENAI_API_KEY", "sk-demo-not-used")
+27 |
+28 | from prometheus_client import REGISTRY, start_http_server  # noqa: E402
+   |                                                            ^^^^^^^^^^^^
+29 |
+30 | from pg_mcp.config.settings import ResilienceConfig, Settings, ValidationConfig  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+F401 [*] `pg_mcp.config.settings.ResilienceConfig` imported but unused
+  --> scripts\demo_features.py:30:36
+   |
+28 | from prometheus_client import REGISTRY, start_http_server  # noqa: E402
+29 |
+30 | from pg_mcp.config.settings import ResilienceConfig, Settings, ValidationConfig  # noqa: E402
+   |                                    ^^^^^^^^^^^^^^^^
+31 | from pg_mcp.models.query import QueryRequest, ReturnType  # noqa: E402
+32 | from pg_mcp.observability.tracing import get_request_id  # noqa: E402
+   |
+help: Remove unused import: `pg_mcp.config.settings.ResilienceConfig`
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --> scripts\demo_features.py:30:82
+   |
+28 | from prometheus_client import REGISTRY, start_http_server  # noqa: E402
+29 |
+30 | from pg_mcp.config.settings import ResilienceConfig, Settings, ValidationConfig  # noqa: E402
+   |                                                                                  ^^^^^^^^^^^^
+31 | from pg_mcp.models.query import QueryRequest, ReturnType  # noqa: E402
+32 | from pg_mcp.observability.tracing import get_request_id  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --> scripts\demo_features.py:31:59
+   |
+30 | from pg_mcp.config.settings import ResilienceConfig, Settings, ValidationConfig  # noqa: E402
+31 | from pg_mcp.models.query import QueryRequest, ReturnType  # noqa: E402
+   |                                                           ^^^^^^^^^^^^
+32 | from pg_mcp.observability.tracing import get_request_id  # noqa: E402
+33 | from pg_mcp.resilience.rate_limiter import MultiRateLimiter  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --> scripts\demo_features.py:32:58
+   |
+30 | from pg_mcp.config.settings import ResilienceConfig, Settings, ValidationConfig  # noqa: E402
+31 | from pg_mcp.models.query import QueryRequest, ReturnType  # noqa: E402
+32 | from pg_mcp.observability.tracing import get_request_id  # noqa: E402
+   |                                                          ^^^^^^^^^^^^
+33 | from pg_mcp.resilience.rate_limiter import MultiRateLimiter  # noqa: E402
+34 | from pg_mcp.services.orchestrator import QueryOrchestrator  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --> scripts\demo_features.py:33:62
+   |
+31 | from pg_mcp.models.query import QueryRequest, ReturnType  # noqa: E402
+32 | from pg_mcp.observability.tracing import get_request_id  # noqa: E402
+33 | from pg_mcp.resilience.rate_limiter import MultiRateLimiter  # noqa: E402
+   |                                                              ^^^^^^^^^^^^
+34 | from pg_mcp.services.orchestrator import QueryOrchestrator  # noqa: E402
+35 | from pg_mcp.services.sql_executor import SQLExecutor  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --> scripts\demo_features.py:34:61
+   |
+32 | from pg_mcp.observability.tracing import get_request_id  # noqa: E402
+33 | from pg_mcp.resilience.rate_limiter import MultiRateLimiter  # noqa: E402
+34 | from pg_mcp.services.orchestrator import QueryOrchestrator  # noqa: E402
+   |                                                             ^^^^^^^^^^^^
+35 | from pg_mcp.services.sql_executor import SQLExecutor  # noqa: E402
+36 | from pg_mcp.services.sql_generator import SQLGenerator  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --> scripts\demo_features.py:35:55
+   |
+33 | from pg_mcp.resilience.rate_limiter import MultiRateLimiter  # noqa: E402
+34 | from pg_mcp.services.orchestrator import QueryOrchestrator  # noqa: E402
+35 | from pg_mcp.services.sql_executor import SQLExecutor  # noqa: E402
+   |                                                       ^^^^^^^^^^^^
+36 | from pg_mcp.services.sql_generator import SQLGenerator  # noqa: E402
+37 | from pg_mcp.services.sql_validator import SQLValidator  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --> scripts\demo_features.py:36:57
+   |
+34 | from pg_mcp.services.orchestrator import QueryOrchestrator  # noqa: E402
+35 | from pg_mcp.services.sql_executor import SQLExecutor  # noqa: E402
+36 | from pg_mcp.services.sql_generator import SQLGenerator  # noqa: E402
+   |                                                         ^^^^^^^^^^^^
+37 | from pg_mcp.services.sql_validator import SQLValidator  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --> scripts\demo_features.py:37:57
+   |
+35 | from pg_mcp.services.sql_executor import SQLExecutor  # noqa: E402
+36 | from pg_mcp.services.sql_generator import SQLGenerator  # noqa: E402
+37 | from pg_mcp.services.sql_validator import SQLValidator  # noqa: E402
+   |                                                         ^^^^^^^^^^^^
+38 |
+39 | BANNER = "=" * 72
+   |
+help: Remove unused `noqa` directive
+
+RUF001 String contains ambiguous `：` (FULLWIDTH COLON). Did you mean `:` (COLON)?
+   --> scripts\demo_features.py:115:23
+    |
+113 | def demo_multi_database() -> QueryOrchestrator:
+114 |     """Demo 1: DATABASES JSON config + per-database executor routing."""
+115 |     section("1. 多数据库支持：DATABASES JSON 配置 + 按库路由执行器")
+    |                             ^^
+116 |
+117 |     os.environ["DATABASE_NAME"] = "maindb"
+    |
+
+E501 Line too long (111 > 100)
+   --> scripts\demo_features.py:142:101
+    |
+140 |     print(f"      error.code={resp.error.code if resp.error else None}")
+141 |     print(f"      error.message={resp.error.message if resp.error else None}")
+142 |     print(f"      available_databases={resp.error.details.get('available_databases') if resp.error else None}")
+    |                                                                                                     ^^^^^^^^^^^
+143 |
+144 |     # c) 多库但未指定 → 要求显式指定
+    |
+
+RUF001 String contains ambiguous `：` (FULLWIDTH COLON). Did you mean `:` (COLON)?
+   --> scripts\demo_features.py:153:21
+    |
+151 | def demo_security() -> None:
+152 |     """Demo 2: config-driven blocked tables / columns / EXPLAIN policy."""
+153 |     section("2. 安全控制：配置化封禁表 / 封禁列 / EXPLAIN 策略")
+    |                         ^^
+154 |
+155 |     os.environ["SECURITY_BLOCKED_TABLES"] = "salaries, audit_log"
+    |
+
+RUF001 String contains ambiguous `：` (FULLWIDTH COLON). Did you mean `:` (COLON)?
+   --> scripts\demo_features.py:190:22
+    |
+188 | def demo_rate_limit() -> None:
+189 |     """Demo 3: concurrency rate limiting produces RATE_LIMITED errors."""
+190 |     section("3. 弹性-限流：并发打满后请求被拒绝 (rate_limit_exceeded)")
+    |                          ^^
+191 |
+192 |     settings = Settings()
+    |
+
+S101 Use of `assert` detected
+   --> scripts\demo_features.py:199:9
+    |
+197 |     async def run() -> None:
+198 |         limiter = orchestrator.rate_limiter
+199 |         assert limiter is not None
+    |         ^^^^^^
+200 |         # Simulate one request already holding the only slot
+201 |         await limiter.query_limiter.acquire()
+    |
+
+RUF001 String contains ambiguous `：` (FULLWIDTH COLON). Did you mean `:` (COLON)?
+   --> scripts\demo_features.py:218:24
+    |
+216 | def demo_backoff() -> None:
+217 |     """Demo 4: exponential backoff between generation retries."""
+218 |     section("4. 弹性-重试退避：验证失败后按指数退避重试")
+    |                              ^^
+219 |
+220 |     settings = Settings()
+    |
+
+RUF003 Comment contains ambiguous `，` (FULLWIDTH COMMA). Did you mean `,` (COMMA)?
+   --> scripts\demo_features.py:226:23
+    |
+224 |     orchestrator, _log = build_orchestrator(settings)
+225 |
+226 |     # LLM 先两次生成不安全 SQL，触发重试
+    |                               ^^
+227 |     attempts: list[str] = ["DELETE FROM users", "DROP TABLE users", "SELECT 1", "SELECT 1"]
+228 |     gen = orchestrator.sql_generator
+    |
+
+RUF034 Useless `if`-`else` condition
+   --> scripts\demo_features.py:265:21
+    |
+263 |         elapsed = time.perf_counter() - start
+264 |         orch_mod.asyncio.sleep = real_sleep  # type: ignore[assignment]
+265 |         return sql, delays if elapsed else delays
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+266 |
+267 |     sql, delays = asyncio.run(run())
+    |
+
+F541 [*] f-string without any placeholders
+   --> scripts\demo_features.py:268:11
+    |
+267 |     sql, delays = asyncio.run(run())
+268 |     print(f"  max_retries=3, retry_delay=0.2s, backoff_factor=2.0")
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+269 |     print(f"  第1次生成 DELETE(被拒) -> 退避 {delays[0]:.2f}s")
+270 |     print(f"  第2次生成 DROP(被拒)   -> 退避 {delays[1]:.2f}s")
+    |
+help: Remove extraneous `f` prefix
+
+RUF001 String contains ambiguous `，` (FULLWIDTH COMMA). Did you mean `,` (COMMA)?
+   --> scripts\demo_features.py:271:31
+    |
+269 |     print(f"  第1次生成 DELETE(被拒) -> 退避 {delays[0]:.2f}s")
+270 |     print(f"  第2次生成 DROP(被拒)   -> 退避 {delays[1]:.2f}s")
+271 |     print(f"  第3次生成 SELECT(通过)，最终 SQL: {sql}")
+    |                                     ^^
+272 |     print(f"  实测退避序列: {[f'{d:.2f}' for d in delays]} (期望 [0.20, 0.40])")
+    |
+
+RUF001 String contains ambiguous `：` (FULLWIDTH COLON). Did you mean `:` (COLON)?
+   --> scripts\demo_features.py:277:24
+    |
+275 | def demo_metrics(orchestrator: QueryOrchestrator) -> None:
+276 |     """Demo 5: Prometheus metrics captured by the pipeline."""
+277 |     section("5. 可观测性-指标：Prometheus pg_mcp_* 指标")
+    |                              ^^
+278 |
+279 |     async def fire() -> None:
+    |
+
+RUF001 String contains ambiguous `，` (FULLWIDTH COMMA). Did you mean `,` (COMMA)?
+   --> scripts\demo_features.py:303:43
+    |
+302 |     request_id = get_request_id()
+303 |     print(f"\n  (链路追踪 request_id 已贯穿请求生命周期，本次上下文: {request_id})")
+    |                                                        ^^
+    |
+
+SIM105 Use `contextlib.suppress(KeyboardInterrupt)` instead of `try`-`except`-`pass`
+   --> scripts\demo_features.py:325:9
+    |
+323 |           section("Prometheus 指标端点已启动: http://localhost:9090/metrics (Ctrl+C 退出)")
+324 |           start_http_server(9090)
+325 | /         try:
+326 | |             asyncio.get_event_loop().run_forever()
+327 | |         except KeyboardInterrupt:
+328 | |             pass
+    | |________________^
+329 |
+330 |       print()
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(KeyboardInterrupt): ...`
+
+Found 24 errors.
+[*] 12 fixable with the `--fix` option (1 hidden fix can be enabled with the `--unsafe-fixes` option).

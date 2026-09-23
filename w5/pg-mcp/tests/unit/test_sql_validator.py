@@ -154,7 +154,7 @@ class TestRejectedStatements:
     @pytest.fixture
     def validator(self) -> SQLValidator:
         """Create validator for testing rejected statements."""
-        config = SecurityConfig(allow_write_operations=False)
+        config = SecurityConfig()
         return SQLValidator(config=config)
 
     def test_insert_rejected(self, validator: SQLValidator) -> None:
@@ -350,12 +350,38 @@ class TestSensitiveResources:
         validator = SQLValidator(config=config, blocked_columns=["users.ssn"])
 
         sql = "SELECT users.id, users.ssn FROM users"
-        # This should NOT be blocked because we check the column name without table prefix
-        # unless explicitly in the blocked list
+        with pytest.raises(SecurityViolationError) as exc_info:
+            validator.validate_or_raise(sql)
+        assert "users.ssn" in str(exc_info.value).lower()
+
+    def test_unqualified_column_not_blocked_by_qualified_rule(self) -> None:
+        """Test plain column names are not affected by 'table.column' rules."""
+        config = SecurityConfig()
+        validator = SQLValidator(config=config, blocked_columns=["users.ssn"])
+
+        sql = "SELECT id, ssn FROM users"
         is_valid, error = validator.validate(sql)
-        # Actually, it depends on implementation - let's test both scenarios
-        # The validator checks both column name and qualified name
-        assert is_valid or "ssn" in (error or "")
+        assert is_valid
+        assert error is None
+
+    def test_blocked_lists_from_security_config(self) -> None:
+        """Test blocked tables/columns and EXPLAIN policy read from SecurityConfig."""
+        config = SecurityConfig(
+            blocked_tables=["salaries"],
+            blocked_columns=["salary"],
+            allow_explain=True,
+        )
+        validator = SQLValidator(config=config)
+
+        with pytest.raises(SecurityViolationError, match="salaries"):
+            validator.validate_or_raise("SELECT * FROM salaries")
+
+        with pytest.raises(SecurityViolationError, match="salary"):
+            validator.validate_or_raise("SELECT salary FROM employees")
+
+        is_valid, error = validator.validate("EXPLAIN SELECT * FROM employees")
+        assert is_valid
+        assert error is None
 
 
 class TestMultiStatement:

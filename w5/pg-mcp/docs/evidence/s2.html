@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body { font-family: Consolas, monospace; background:#f6f8fa; margin:0; padding:20px; }
+h1 { font-family:'Segoe UI',sans-serif; font-size:20px; color:#1f2328; margin:0 0 10px 0;}
+pre { background:#0d1117; color:#c9d1d9; padding:14px; border-radius:8px; font-size:13.5px; white-space:pre-wrap; }
+.badge { display:inline-block; background:#1a7f37; color:#fff; padding:2px 10px; border-radius:12px; margin:0 8px 8px 0; font-family:'Segoe UI',sans-serif; font-size:13px;}
+</style></head><body><h1>证据 2/5 — 2. 安全控制：配置化封禁表 / 封禁列 / EXPLAIN 策略</h1><p><span class="badge">ruff: All checks passed!</span><span class="badge">mypy: 30 files, no issues</span><span class="badge">pytest: 305 passed</span><span class="badge">coverage: 88.57% (&ge;80%)</span></p><pre>  SECURITY_BLOCKED_TABLES=[&#x27;salaries&#x27;, &#x27;audit_log&#x27;]
+  SECURITY_BLOCKED_COLUMNS=[&#x27;password_hash&#x27;]
+  SECURITY_ALLOW_EXPLAIN=False
+
+  [PASS] 正常查询
+        SQL: SELECT * FROM users
+
+  [REJECTED] 访问封禁表 salaries
+        SQL: SELECT * FROM salaries  原因: Access to table &#x27;salaries&#x27; is not allowed
+
+  [REJECTED] JOIN 封禁表 audit_log
+        SQL: SELECT u.name FROM users u JOIN audit_log a ON u.id = a.user_id  原因: Access to table &#x27;audit_log&#x27; is not allowed
+
+  [REJECTED] 访问封禁列 password_hash
+        SQL: SELECT id, password_hash FROM users  原因: Access to column &#x27;password_hash&#x27; is not allowed
+
+  [REJECTED] EXPLAIN(默认禁止)
+        SQL: EXPLAIN SELECT * FROM users  原因: EXPLAIN statements are not allowed
+
+  -- 打开 SECURITY_ALLOW_EXPLAIN=true 后 --
+  [PASS] EXPLAIN(已允许)
+
+</pre></body></html>

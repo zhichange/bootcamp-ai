@@ -1,0 +1,31 @@
+Query execution failed with known error
+Query execution failed with known error
+
+========================================================================
+  1. 多数据库支持：DATABASES JSON 配置 + 按库路由执行器
+========================================================================
+  配置的主库:      maindb
+  DATABASES 附加库: ['sales', 'archive']
+  全部可用数据库:   ['maindb', 'sales', 'archive']
+
+  [a] 指定 database='sales'      -> success=True
+      响应中 generated_sql='SELECT id, name FROM users'  (由 sales 执行器执行)
+
+  [b] 指定 database='wrongdb'    -> success=False
+      error.code=database_error
+      error.message=Database 'wrongdb' not found
+      available_databases=['maindb', 'sales', 'archive']
+
+  [c] 未指定 database(多库环境)  -> success=False
+      error.message=Multiple databases available, please specify which to query
+
+========================================================================
+  5. 可观测性-指标：Prometheus pg_mcp_* 指标
+========================================================================
+  pg_mcp_query_requests_total{status=success,database=sales} = 2.0
+  pg_mcp_query_requests_total{status=success,database=maindb} = 1.0
+  pg_mcp_query_duration_seconds_count = 3.0
+  pg_mcp_llm_calls_total{operation=generate_sql} = 3.0
+
+  (链路追踪 request_id 已贯穿请求生命周期，本次上下文: None)
+metrics serving on http://localhost:9090/metrics ...

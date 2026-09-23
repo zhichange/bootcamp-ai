@@ -1,0 +1,380 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+body { font-family: 'Cascadia Code', Consolas, monospace; background:#f6f8fa; margin:0; padding:24px; }
+h1 { font-family: Segoe UI, sans-serif; color:#1f2328; }
+h2 { font-family: Segoe UI, sans-serif; color:#0969da; border-bottom:2px solid #d0d7de; padding-bottom:4px;}
+pre { background:#0d1117; color:#c9d1d9; padding:14px; border-radius:8px; font-size:12.5px; white-space:pre-wrap; }
+.badge { display:inline-block; background:#1a7f37; color:#fff; padding:2px 10px; border-radius:12px; margin-right:8px; font-family:Segoe UI,sans-serif; font-size:13px;}
+</style></head><body>
+<h1>pg-mcp 功能完成证据 — 多数据库 / 安全控制 / 弹性与可观测性</h1>
+<p>
+<span class="badge">ruff: F401 [*] `unittest.mock.AsyncMock` imported but unused
+  --&gt; scripts\demo_features.py:21:27
+   |
+19 | import sys
+20 | import time
+21 | from unittest.mock import AsyncMock, MagicMock
+   |                           ^^^^^^^^^
+22 |
+23 | sys.path.insert(0, os.path.join(os.path.dirname(__file__), &quot;..&quot;, &quot;src&quot;))
+   |
+help: Remove unused import: `unittest.mock.AsyncMock`
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --&gt; scripts\demo_features.py:28:60
+   |
+26 | os.environ.setdefault(&quot;OPENAI_API_KEY&quot;, &quot;sk-demo-not-used&quot;)
+27 |
+28 | from prometheus_client import REGISTRY, start_http_server  # noqa: E402
+   |                                                            ^^^^^^^^^^^^
+29 |
+30 | from pg_mcp.config.settings import ResilienceConfig, Settings, ValidationConfig  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+F401 [*] `pg_mcp.config.settings.ResilienceConfig` imported but unused
+  --&gt; scripts\demo_features.py:30:36
+   |
+28 | from prometheus_client import REGISTRY, start_http_server  # noqa: E402
+29 |
+30 | from pg_mcp.config.settings import ResilienceConfig, Settings, ValidationConfig  # noqa: E402
+   |                                    ^^^^^^^^^^^^^^^^
+31 | from pg_mcp.models.query import QueryRequest, ReturnType  # noqa: E402
+32 | from pg_mcp.observability.tracing import get_request_id  # noqa: E402
+   |
+help: Remove unused import: `pg_mcp.config.settings.ResilienceConfig`
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --&gt; scripts\demo_features.py:30:82
+   |
+28 | from prometheus_client import REGISTRY, start_http_server  # noqa: E402
+29 |
+30 | from pg_mcp.config.settings import ResilienceConfig, Settings, ValidationConfig  # noqa: E402
+   |                                                                                  ^^^^^^^^^^^^
+31 | from pg_mcp.models.query import QueryRequest, ReturnType  # noqa: E402
+32 | from pg_mcp.observability.tracing import get_request_id  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --&gt; scripts\demo_features.py:31:59
+   |
+30 | from pg_mcp.config.settings import ResilienceConfig, Settings, ValidationConfig  # noqa: E402
+31 | from pg_mcp.models.query import QueryRequest, ReturnType  # noqa: E402
+   |                                                           ^^^^^^^^^^^^
+32 | from pg_mcp.observability.tracing import get_request_id  # noqa: E402
+33 | from pg_mcp.resilience.rate_limiter import MultiRateLimiter  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --&gt; scripts\demo_features.py:32:58
+   |
+30 | from pg_mcp.config.settings import ResilienceConfig, Settings, ValidationConfig  # noqa: E402
+31 | from pg_mcp.models.query import QueryRequest, ReturnType  # noqa: E402
+32 | from pg_mcp.observability.tracing import get_request_id  # noqa: E402
+   |                                                          ^^^^^^^^^^^^
+33 | from pg_mcp.resilience.rate_limiter import MultiRateLimiter  # noqa: E402
+34 | from pg_mcp.services.orchestrator import QueryOrchestrator  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --&gt; scripts\demo_features.py:33:62
+   |
+31 | from pg_mcp.models.query import QueryRequest, ReturnType  # noqa: E402
+32 | from pg_mcp.observability.tracing import get_request_id  # noqa: E402
+33 | from pg_mcp.resilience.rate_limiter import MultiRateLimiter  # noqa: E402
+   |                                                              ^^^^^^^^^^^^
+34 | from pg_mcp.services.orchestrator import QueryOrchestrator  # noqa: E402
+35 | from pg_mcp.services.sql_executor import SQLExecutor  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --&gt; scripts\demo_features.py:34:61
+   |
+32 | from pg_mcp.observability.tracing import get_request_id  # noqa: E402
+33 | from pg_mcp.resilience.rate_limiter import MultiRateLimiter  # noqa: E402
+34 | from pg_mcp.services.orchestrator import QueryOrchestrator  # noqa: E402
+   |                                                             ^^^^^^^^^^^^
+35 | from pg_mcp.services.sql_executor import SQLExecutor  # noqa: E402
+36 | from pg_mcp.services.sql_generator import SQLGenerator  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --&gt; scripts\demo_features.py:35:55
+   |
+33 | from pg_mcp.resilience.rate_limiter import MultiRateLimiter  # noqa: E402
+34 | from pg_mcp.services.orchestrator import QueryOrchestrator  # noqa: E402
+35 | from pg_mcp.services.sql_executor import SQLExecutor  # noqa: E402
+   |                                                       ^^^^^^^^^^^^
+36 | from pg_mcp.services.sql_generator import SQLGenerator  # noqa: E402
+37 | from pg_mcp.services.sql_validator import SQLValidator  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --&gt; scripts\demo_features.py:36:57
+   |
+34 | from pg_mcp.services.orchestrator import QueryOrchestrator  # noqa: E402
+35 | from pg_mcp.services.sql_executor import SQLExecutor  # noqa: E402
+36 | from pg_mcp.services.sql_generator import SQLGenerator  # noqa: E402
+   |                                                         ^^^^^^^^^^^^
+37 | from pg_mcp.services.sql_validator import SQLValidator  # noqa: E402
+   |
+help: Remove unused `noqa` directive
+
+RUF100 [*] Unused `noqa` directive (unused: `E402`)
+  --&gt; scripts\demo_features.py:37:57
+   |
+35 | from pg_mcp.services.sql_executor import SQLExecutor  # noqa: E402
+36 | from pg_mcp.services.sql_generator import SQLGenerator  # noqa: E402
+37 | from pg_mcp.services.sql_validator import SQLValidator  # noqa: E402
+   |                                                         ^^^^^^^^^^^^
+38 |
+39 | BANNER = &quot;=&quot; * 72
+   |
+help: Remove unused `noqa` directive
+
+RUF001 String contains ambiguous `：` (FULLWIDTH COLON). Did you mean `:` (COLON)?
+   --&gt; scripts\demo_features.py:115:23
+    |
+113 | def demo_multi_database() -&gt; QueryOrchestrator:
+114 |     &quot;&quot;&quot;Demo 1: DATABASES JSON config + per-database executor routing.&quot;&quot;&quot;
+115 |     section(&quot;1. 多数据库支持：DATABASES JSON 配置 + 按库路由执行器&quot;)
+    |                             ^^
+116 |
+117 |     os.environ[&quot;DATABASE_NAME&quot;] = &quot;maindb&quot;
+    |
+
+E501 Line too long (111 &gt; 100)
+   --&gt; scripts\demo_features.py:142:101
+    |
+140 |     print(f&quot;      error.code={resp.error.code if resp.error else None}&quot;)
+141 |     print(f&quot;      error.message={resp.error.message if resp.error else None}&quot;)
+142 |     print(f&quot;      available_databases={resp.error.details.get(&#x27;available_databases&#x27;) if resp.error else None}&quot;)
+    |                                                                                                     ^^^^^^^^^^^
+143 |
+144 |     # c) 多库但未指定 → 要求显式指定
+    |
+
+RUF001 String contains ambiguous `：` (FULLWIDTH COLON). Did you mean `:` (COLON)?
+   --&gt; scripts\demo_features.py:153:21
+    |
+151 | def demo_security() -&gt; None:
+152 |     &quot;&quot;&quot;Demo 2: config-driven blocked tables / columns / EXPLAIN policy.&quot;&quot;&quot;
+153 |     section(&quot;2. 安全控制：配置化封禁表 / 封禁列 / EXPLAIN 策略&quot;)
+    |                         ^^
+154 |
+155 |     os.environ[&quot;SECURITY_BLOCKED_TABLES&quot;] = &quot;salaries, audit_log&quot;
+    |
+
+RUF001 String contains ambiguous `：` (FULLWIDTH COLON). Did you mean `:` (COLON)?
+   --&gt; scripts\demo_features.py:190:22
+    |
+188 | def demo_rate_limit() -&gt; None:
+189 |     &quot;&quot;&quot;Demo 3: concurrency rate limiting produces RATE_LIMITED errors.&quot;&quot;&quot;
+190 |     section(&quot;3. 弹性-限流：并发打满后请求被拒绝 (rate_limit_exceeded)&quot;)
+    |                          ^^
+191 |
+192 |     settings = Settings()
+    |
+
+S101 Use of `assert` detected
+   --&gt; scripts\demo_features.py:199:9
+    |
+197 |     async def run() -&gt; None:
+198 |         limiter = orchestrator.rate_limiter
+199 |         assert limiter is not None
+    |         ^^^^^^
+200 |         # Simulate one request already holding the only slot
+201 |         await limiter.query_limiter.acquire()
+    |
+
+RUF001 String contains ambiguous `：` (FULLWIDTH COLON). Did you mean `:` (COLON)?
+   --&gt; scripts\demo_features.py:218:24
+    |
+216 | def demo_backoff() -&gt; None:
+217 |     &quot;&quot;&quot;Demo 4: exponential backoff between generation retries.&quot;&quot;&quot;
+218 |     section(&quot;4. 弹性-重试退避：验证失败后按指数退避重试&quot;)
+    |                              ^^
+219 |
+220 |     settings = Settings()
+    |
+
+RUF003 Comment contains ambiguous `，` (FULLWIDTH COMMA). Did you mean `,` (COMMA)?
+   --&gt; scripts\demo_features.py:226:23
+    |
+224 |     orchestrator, _log = build_orchestrator(settings)
+225 |
+226 |     # LLM 先两次生成不安全 SQL，触发重试
+    |                               ^^
+227 |     attempts: list[str] = [&quot;DELETE FROM users&quot;, &quot;DROP TABLE users&quot;, &quot;SELECT 1&quot;, &quot;SELECT 1&quot;]
+228 |     gen = orchestrator.sql_generator
+    |
+
+RUF034 Useless `if`-`else` condition
+   --&gt; scripts\demo_features.py:265:21
+    |
+263 |         elapsed = time.perf_counter() - start
+264 |         orch_mod.asyncio.sleep = real_sleep  # type: ignore[assignment]
+265 |         return sql, delays if elapsed else delays
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+266 |
+267 |     sql, delays = asyncio.run(run())
+    |
+
+F541 [*] f-string without any placeholders
+   --&gt; scripts\demo_features.py:268:11
+    |
+267 |     sql, delays = asyncio.run(run())
+268 |     print(f&quot;  max_retries=3, retry_delay=0.2s, backoff_factor=2.0&quot;)
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+269 |     print(f&quot;  第1次生成 DELETE(被拒) -&gt; 退避 {delays[0]:.2f}s&quot;)
+270 |     print(f&quot;  第2次生成 DROP(被拒)   -&gt; 退避 {delays[1]:.2f}s&quot;)
+    |
+help: Remove extraneous `f` prefix
+
+RUF001 String contains ambiguous `，` (FULLWIDTH COMMA). Did you mean `,` (COMMA)?
+   --&gt; scripts\demo_features.py:271:31
+    |
+269 |     print(f&quot;  第1次生成 DELETE(被拒) -&gt; 退避 {delays[0]:.2f}s&quot;)
+270 |     print(f&quot;  第2次生成 DROP(被拒)   -&gt; 退避 {delays[1]:.2f}s&quot;)
+271 |     print(f&quot;  第3次生成 SELECT(通过)，最终 SQL: {sql}&quot;)
+    |                                     ^^
+272 |     print(f&quot;  实测退避序列: {[f&#x27;{d:.2f}&#x27; for d in delays]} (期望 [0.20, 0.40])&quot;)
+    |
+
+RUF001 String contains ambiguous `：` (FULLWIDTH COLON). Did you mean `:` (COLON)?
+   --&gt; scripts\demo_features.py:277:24
+    |
+275 | def demo_metrics(orchestrator: QueryOrchestrator) -&gt; None:
+276 |     &quot;&quot;&quot;Demo 5: Prometheus metrics captured by the pipeline.&quot;&quot;&quot;
+277 |     section(&quot;5. 可观测性-指标：Prometheus pg_mcp_* 指标&quot;)
+    |                              ^^
+278 |
+279 |     async def fire() -&gt; None:
+    |
+
+RUF001 String contains ambiguous `，` (FULLWIDTH COMMA). Did you mean `,` (COMMA)?
+   --&gt; scripts\demo_features.py:303:43
+    |
+302 |     request_id = get_request_id()
+303 |     print(f&quot;\n  (链路追踪 request_id 已贯穿请求生命周期，本次上下文: {request_id})&quot;)
+    |                                                        ^^
+    |
+
+SIM105 Use `contextlib.suppress(KeyboardInterrupt)` instead of `try`-`except`-`pass`
+   --&gt; scripts\demo_features.py:325:9
+    |
+323 |           section(&quot;Prometheus 指标端点已启动: http://localhost:9090/metrics (Ctrl+C 退出)&quot;)
+324 |           start_http_server(9090)
+325 | /         try:
+326 | |             asyncio.get_event_loop().run_forever()
+327 | |         except KeyboardInterrupt:
+328 | |             pass
+    | |________________^
+329 |
+330 |       print()
+    |
+help: Replace `try`-`except`-`pass` with `with contextlib.suppress(KeyboardInterrupt): ...`
+
+Found 24 errors.
+[*] 12 fixable with the `--fix` option (1 hidden fix can be enabled with the `--unsafe-fixes` option).</span>
+<span class="badge">mypy: Success: no issues found in 30 source files</span>
+<span class="badge">pytest: 305 passed</span>
+<span class="badge">coverage: 88.57% (&ge; 80%)</span>
+</p>
+<h2>python scripts/demo_features.py — 功能演示输出</h2>
+<pre>========================================================================
+  pg-mcp 功能演示: 多数据库 / 安全控制 / 限流 / 退避 / 指标
+========================================================================
+
+========================================================================
+  1. 多数据库支持：DATABASES JSON 配置 + 按库路由执行器
+========================================================================
+  配置的主库:      maindb
+  DATABASES 附加库: [&#x27;sales&#x27;, &#x27;archive&#x27;]
+  全部可用数据库:   [&#x27;maindb&#x27;, &#x27;sales&#x27;, &#x27;archive&#x27;]
+
+  [a] 指定 database=&#x27;sales&#x27;      -&gt; success=True
+      响应中 generated_sql=&#x27;SELECT id, name FROM users&#x27;  (由 sales 执行器执行)
+
+  [b] 指定 database=&#x27;wrongdb&#x27;    -&gt; success=False
+      error.code=database_error
+      error.message=Database &#x27;wrongdb&#x27; not found
+      available_databases=[&#x27;maindb&#x27;, &#x27;sales&#x27;, &#x27;archive&#x27;]
+
+  [c] 未指定 database(多库环境)  -&gt; success=False
+      error.message=Multiple databases available, please specify which to query
+
+========================================================================
+  2. 安全控制：配置化封禁表 / 封禁列 / EXPLAIN 策略
+========================================================================
+  SECURITY_BLOCKED_TABLES=[&#x27;salaries&#x27;, &#x27;audit_log&#x27;]
+  SECURITY_BLOCKED_COLUMNS=[&#x27;password_hash&#x27;]
+  SECURITY_ALLOW_EXPLAIN=False
+
+  [PASS] 正常查询
+        SQL: SELECT * FROM users
+
+  [REJECTED] 访问封禁表 salaries
+        SQL: SELECT * FROM salaries  原因: Access to table &#x27;salaries&#x27; is not allowed
+
+  [REJECTED] JOIN 封禁表 audit_log
+        SQL: SELECT u.name FROM users u JOIN audit_log a ON u.id = a.user_id  原因: Access to table &#x27;audit_log&#x27; is not allowed
+
+  [REJECTED] 访问封禁列 password_hash
+        SQL: SELECT id, password_hash FROM users  原因: Access to column &#x27;password_hash&#x27; is not allowed
+
+  [REJECTED] EXPLAIN(默认禁止)
+        SQL: EXPLAIN SELECT * FROM users  原因: EXPLAIN statements are not allowed
+
+  -- 打开 SECURITY_ALLOW_EXPLAIN=true 后 --
+  [PASS] EXPLAIN(已允许)
+
+========================================================================
+  3. 弹性-限流：并发打满后请求被拒绝 (rate_limit_exceeded)
+========================================================================
+  当前并发查询槽位: 1/1 已占用
+  新请求 -&gt; success=False
+  error.code=rate_limit_exceeded
+  error.message=Query rate limit exceeded: too many concurrent requests, please retry later
+
+========================================================================
+  4. 弹性-重试退避：验证失败后按指数退避重试
+========================================================================
+  max_retries=3, retry_delay=0.2s, backoff_factor=2.0
+  第1次生成 DELETE(被拒) -&gt; 退避 0.20s
+  第2次生成 DROP(被拒)   -&gt; 退避 0.40s
+  第3次生成 SELECT(通过)，最终 SQL: SELECT 1
+  实测退避序列: [&#x27;0.20&#x27;, &#x27;0.40&#x27;] (期望 [0.20, 0.40])
+
+========================================================================
+  5. 可观测性-指标：Prometheus pg_mcp_* 指标
+========================================================================
+  pg_mcp_query_requests_total{status=success,database=sales} = 2.0
+  pg_mcp_query_requests_total{status=success,database=maindb} = 1.0
+  pg_mcp_query_duration_seconds_count = 3.0
+  pg_mcp_llm_calls_total{operation=generate_sql} = 6.0
+  pg_mcp_sql_rejected_total{reason=security_violation} = 2.0
+
+  (链路追踪 request_id 已贯穿请求生命周期，本次上下文: None)
+
+========================================================================
+  演示结束
+========================================================================
+</pre>
+<h2>uv run pytest tests/unit --cov=src（末尾摘要）</h2>
+<pre>src\pg_mcp\services\result_validator.py       49     11     12      1    74%
+src\pg_mcp\services\sql_executor.py           71      1     24      0    99%
+src\pg_mcp\services\sql_generator.py          49      1     18      1    97%
+src\pg_mcp\services\sql_validator.py         120     11     68      8    89%
+----------------------------------------------------------------------------
+TOTAL                                       1565    153    368     42    89%
+Required test coverage of 80.0% reached. Total coverage: 88.57%
+============================ 305 passed in 12.55s =============================
+</pre>
+</body></html>

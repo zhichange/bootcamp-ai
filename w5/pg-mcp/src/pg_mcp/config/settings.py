@@ -3,9 +3,22 @@
 This module defines all configuration settings using Pydantic for validation
 and type safety. Configuration is loaded from environment variables with
 sensible defaults.
+
+Multi-database support:
+    The primary database is configured via ``DATABASE_*`` environment variables.
+    Additional databases can be configured via the ``DATABASES`` environment
+    variable as a JSON array, e.g.::
+
+        DATABASES=[{"name":"db2","host":"localhost","port":5432,
+                    "user":"postgres","password":"secret"}]
+
+    Each entry accepts the same fields as ``DatabaseConfig`` (with ``name``
+    required for identity); fields left unspecified inherit from the
+    ``DATABASE_*`` environment variables, then built-in defaults.
 """
 
-from typing import Literal
+import json
+from typing import Any, Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -75,10 +88,7 @@ class SecurityConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="SECURITY_")
 
-    allow_write_operations: bool = Field(
-        default=False, description="Allow write operations (INSERT, UPDATE, DELETE)"
-    )
-    blocked_functions: list[str] = Field(
+    blocked_functions: str | list[str] = Field(
         default_factory=lambda: [
             "pg_sleep",
             "pg_read_file",
@@ -86,7 +96,29 @@ class SecurityConfig(BaseSettings):
             "lo_import",
             "lo_export",
         ],
-        description="List of blocked PostgreSQL functions",
+        description=(
+            "Blocked PostgreSQL functions. Accepts a JSON array, a comma-separated "
+            "string, or a list."
+        ),
+    )
+    blocked_tables: str | list[str] = Field(
+        default_factory=list,
+        description=(
+            "Tables queries must never access. Accepts a JSON array, a "
+            "comma-separated string, or a list."
+        ),
+    )
+    blocked_columns: str | list[str] = Field(
+        default_factory=list,
+        description=(
+            "Columns queries must never access (entries may be plain column "
+            "names or qualified 'table.column' names). Accepts a JSON array, a "
+            "comma-separated string, or a list."
+        ),
+    )
+    allow_explain: bool = Field(
+        default=False,
+        description="Whether EXPLAIN statements are allowed",
     )
     max_rows: int = Field(default=10000, ge=1, le=100000, description="Maximum rows to return")
     max_execution_time: float = Field(
@@ -99,12 +131,12 @@ class SecurityConfig(BaseSettings):
         default="public", description="Safe search_path to set during query execution"
     )
 
-    @field_validator("blocked_functions", mode="before")
+    @field_validator("blocked_functions", "blocked_tables", "blocked_columns", mode="before")
     @classmethod
-    def parse_blocked_functions(cls, v: str | list[str]) -> list[str]:
+    def parse_blocked_items(cls, v: str | list[str]) -> list[str]:
         """Parse comma-separated string or list."""
         if isinstance(v, str):
-            return [f.strip() for f in v.split(",") if f.strip()]
+            return [item.strip() for item in v.split(",") if item.strip()]
         return v
 
 
@@ -115,9 +147,6 @@ class ValidationConfig(BaseSettings):
 
     max_question_length: int = Field(
         default=10000, ge=1, le=50000, description="Maximum question length in characters"
-    )
-    min_confidence_score: int = Field(
-        default=70, ge=0, le=100, description="Minimum confidence score (0-100)"
     )
 
     # Result validation settings
@@ -163,6 +192,12 @@ class ResilienceConfig(BaseSettings):
     circuit_breaker_timeout: float = Field(
         default=60.0, ge=10.0, le=300.0, description="Circuit breaker timeout in seconds"
     )
+    max_concurrent_queries: int = Field(
+        default=10, ge=1, le=1000, description="Maximum concurrent query requests"
+    )
+    max_concurrent_llm_calls: int = Field(
+        default=5, ge=1, le=1000, description="Maximum concurrent LLM API calls"
+    )
 
 
 class ObservabilityConfig(BaseSettings):
@@ -177,7 +212,7 @@ class ObservabilityConfig(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO", description="Logging level"
     )
-    log_format: Literal["json", "text"] = Field(default="text", description="Log format")
+    log_format: Literal["json", "text"] = Field(default="json", description="Log format")
 
 
 class Settings(BaseSettings):
@@ -196,12 +231,85 @@ class Settings(BaseSettings):
 
     # Nested configurations
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    additional_databases: list[DatabaseConfig] = Field(
+        default_factory=list,
+        validation_alias="DATABASES",
+        description=(
+            "Additional databases beyond the primary one. "
+            "Loaded from the DATABASES environment variable as a JSON array."
+        ),
+    )
     openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     validation: ValidationConfig = Field(default_factory=ValidationConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
     observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
+
+    @field_validator("additional_databases", mode="before")
+    @classmethod
+    def parse_databases_json(cls, v: str | list[DatabaseConfig]) -> list[DatabaseConfig]:
+        """Parse the DATABASES environment variable (JSON array) into configs.
+
+        Each entry accepts the same fields as DatabaseConfig; 'name' is
+        required to identify the database. Fields left unspecified inherit
+        from the DATABASE_* environment variables, then built-in defaults.
+
+        Args:
+            v: JSON string or an already-parsed list of database configs.
+
+        Returns:
+            list[DatabaseConfig]: Parsed additional database configurations.
+
+        Raises:
+            ValueError: If the JSON is malformed, an entry is not an object,
+                or an entry is missing the 'name' field.
+        """
+        if isinstance(v, str):
+            if not v.strip():
+                return []
+            try:
+                v = json.loads(v)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"DATABASES must be a valid JSON array: {e}") from e
+        if not isinstance(v, list):
+            raise ValueError("DATABASES must be a JSON array of database objects")
+        for entry in v:
+            if not isinstance(entry, dict):
+                raise ValueError("Each DATABASES entry must be a JSON object")
+            if not entry.get("name"):
+                raise ValueError("Each DATABASES entry must include a 'name' field")
+        return v
+
+    @field_validator("additional_databases")
+    @classmethod
+    def validate_unique_names(cls, v: list[DatabaseConfig], info: Any) -> list[DatabaseConfig]:
+        """Ensure additional database names do not collide with each other
+        or with the primary database name.
+
+        Args:
+            v: Parsed additional database configurations.
+            info: Validation info containing other fields.
+
+        Returns:
+            list[DatabaseConfig]: Validated configurations.
+
+        Raises:
+            ValueError: If duplicate database names are found.
+        """
+        names = [db.name for db in v]
+        duplicates = {name for name in names if names.count(name) > 1}
+        primary = info.data.get("database")
+        if primary is not None and primary.name in names:
+            duplicates.add(primary.name)
+        if duplicates:
+            raise ValueError(f"Duplicate database names are not allowed: {sorted(duplicates)}")
+        return v
+
+    @property
+    def all_databases(self) -> list[DatabaseConfig]:
+        """All configured databases (primary first, then additional ones)."""
+        return [self.database, *self.additional_databases]
 
     @property
     def is_production(self) -> bool:

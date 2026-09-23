@@ -26,13 +26,16 @@ class SQLValidator:
     """
 
     # Allowed statement types at the top level (including set operations)
-    ALLOWED_STATEMENT_TYPES: ClassVar = {
-        exp.Select, exp.Union, exp.Intersect, exp.Except
-    }
+    ALLOWED_STATEMENT_TYPES: ClassVar = {exp.Select, exp.Union, exp.Intersect, exp.Except}
 
     # Allowed top-level expressions (including CTEs)
     ALLOWED_TOP_LEVEL: ClassVar = {
-        exp.Select, exp.Union, exp.Intersect, exp.Except, exp.With, exp.Subquery
+        exp.Select,
+        exp.Union,
+        exp.Intersect,
+        exp.Except,
+        exp.With,
+        exp.Subquery,
     }
 
     # Forbidden statement types
@@ -79,20 +82,29 @@ class SQLValidator:
         config: SecurityConfig,
         blocked_tables: list[str] | None = None,
         blocked_columns: list[str] | None = None,
-        allow_explain: bool = False,
+        allow_explain: bool | None = None,
     ) -> None:
         """Initialize SQL validator.
 
         Args:
             config: Security configuration containing blocked functions and settings.
             blocked_tables: Optional list of table names to block access to.
+                Defaults to config.blocked_tables when not provided.
             blocked_columns: Optional list of column names to block access to.
+                Defaults to config.blocked_columns when not provided.
             allow_explain: Whether to allow EXPLAIN statements.
+                Defaults to config.allow_explain when not provided.
         """
         self.config = config
-        self.blocked_tables = {t.lower() for t in (blocked_tables or [])}
-        self.blocked_columns = {c.lower() for c in (blocked_columns or [])}
-        self.allow_explain = allow_explain
+        self.blocked_tables = {
+            t.lower()
+            for t in (blocked_tables if blocked_tables is not None else config.blocked_tables)
+        }
+        self.blocked_columns = {
+            c.lower()
+            for c in (blocked_columns if blocked_columns is not None else config.blocked_columns)
+        }
+        self.allow_explain = allow_explain if allow_explain is not None else config.allow_explain
 
         # Combine built-in dangerous functions with custom blocked functions
         self.blocked_functions = self.BUILTIN_DANGEROUS_FUNCTIONS | {
